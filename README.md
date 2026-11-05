@@ -1,36 +1,91 @@
-# AI Risk-Based Loan Pricing Engine
+# Loan Risk and Historical Rate Modeling
 
-Local full-stack demo: React/Vite + Tailwind frontend, FastAPI/Pydantic API, SQLite decision log, offline Jupyter/XGBoost training workflow, and mock KYC/bureau responses.
+This repository contains a training pipeline and a FastAPI service; the steps below do not require the frontend.
 
-## Run locally
+## What the models predict
 
-1. Create a Python virtual environment and install the API dependencies:
+Both models use `data/raw/Loan_default.csv` and the same stratified train/test split:
+
+- The XGBoost classifier estimates the dataset's `Default` label probability.
+- The XGBoost regressor estimates the historical `InterestRate` in percentage points.
+- Both pipelines also derive loan-to-income, employment-years, monthly-installment-to-income, and debt-capacity features.
+- Optuna searches model hyperparameters using a validation subset of the training data. The held-out test split is used for final metrics.
+- SHAP artifacts provide local feature contributions and global feature-importance summaries.
+- The metrics report includes constant-baseline comparisons, so check that the models outperform a simple baseline before interpreting outputs.
+
+This dataset does not label loan approvals. The classifier is a default-risk model, not an approval model. The rate estimate reflects historical patterns; it is not a recommended or fair rate for a real applicant.
+
+## Run locally on Windows
+
+Run these commands from the repository root in PowerShell. Use Python 3.11 or newer.
+
+1. Create a virtual environment and install dependencies:
 
    ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   pip install -r backend/requirements.txt
+   py -3.11 -m venv .venv
+   .\.venv\Scripts\python.exe -m pip install --upgrade pip
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
    ```
 
-2. Start the backend:
+2. Train the models, create cleaned train/test splits, and save model/SHAP artifacts:
 
    ```powershell
-   uvicorn app.main:app --app-dir backend --reload --port 8000
+   .\.venv\Scripts\python.exe -m src.trainer --trials 10
    ```
 
-3. In a second terminal, run the React app:
+   The command reads the immutable `data/raw/Loan_default.csv`, writes `data/processed/train.csv` and `data/processed/test.csv`, and creates:
+
+   - `artifacts/classifier_pipe.joblib`
+   - `artifacts/regressor_pipe.joblib`
+   - `artifacts/shap_explainer.joblib`
+   - `artifacts/global_shap_importance.joblib`
+   - `artifacts/training_metrics.json`
+
+   Use `--trials` to change the number of Optuna trials per model. The default is 10; more trials take longer.
+
+3. Start the API:
 
    ```powershell
-   npm install
-   npm run dev
+   .\.venv\Scripts\python.exe -m uvicorn api.main:app --reload
    ```
 
-Visit `http://127.0.0.1:5173`. The Vite proxy forwards `/api/v1/predict` to FastAPI. API docs are at `http://127.0.0.1:8000/docs`.
+4. Open `http://127.0.0.1:8000/docs`. Try `POST /predict` with this example:
 
-## Model training
+   ```json
+   {
+     "age": 35,
+     "income": 75000,
+     "loan_amount": 25000,
+     "credit_score": 680,
+     "months_employed": 36,
+     "num_credit_lines": 3,
+     "loan_term": 36,
+     "dti_ratio": 0.35,
+     "education": "Bachelor's",
+     "employment_type": "Full-time",
+     "marital_status": "Single",
+     "has_mortgage": "No",
+     "has_dependents": "No",
+     "loan_purpose": "Auto",
+     "has_co_signer": "No"
+   }
+   ```
 
-Open `notebooks/loan_model_training.ipynb` in Jupyter. It creates synthetic data and may export `industrial_loan_model.joblib`. If that artifact is placed in the project root, the API will try to use it; otherwise it uses its transparent, deterministic demo scorer.
+   `POST /predict` reports whether the rate model beats a train-mean baseline; it returns a `null` rate estimate if it does not. `POST /explain` returns SHAP contributions for the same input. `GET /model-info` returns held-out metrics and global SHAP feature summaries; `GET /health` checks that the models loaded.
 
-## Important
+## Docker
 
-This is a synthetic-data demonstration. Mock identity checks, generated scores, and model outputs must not be used for real lending or any other high-impact decision. A production system would require legal/compliance review, privacy controls, representative data, validation, bias/fairness testing, monitoring, security hardening, auditability, and qualified human oversight.
+Train the models first so the files in `artifacts/` exist, then from the repository root:
+
+```powershell
+docker build -t loan-risk-api .
+docker run --rm -p 8000:8000 loan-risk-api
+```
+
+## Data processing and notebooks
+
+`data/raw/` holds the original CSVs. The trainer reads `Loan_default.csv` directly and does not modify the source. It creates the model's cleaned train/test splits under `data/processed/`. The two notebooks provide exploratory analysis and SHAP experiments; select the virtual environment above as the notebook kernel.
+
+## Limitations and responsible use
+
+This is an educational example using a public historical dataset. It has not been validated for current populations, lending policy, calibration, fairness, or regulatory requirements. Predictions and SHAP values must not be used to approve, deny, price, or otherwise make real credit decisions. Do not send personal or sensitive applicant data to this demo service.
