@@ -10,6 +10,7 @@ export default defineConfig({
       '/predict': 'http://127.0.0.1:8000',
       '/explain': 'http://127.0.0.1:8000',
       '/model-info': 'http://127.0.0.1:8000',
+      '/workflow': 'http://127.0.0.1:8000',
     },
   },
 });

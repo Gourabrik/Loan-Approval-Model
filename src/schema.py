@@ -44,3 +44,40 @@ class ExplanationResponse(BaseModel):
     interest_rate_contributions_pct: list[FeatureContribution]
     interest_rate_model_status: Literal["beats_baseline", "does_not_beat_baseline"]
     disclaimer: str
+
+
+class WorkflowStage(BaseModel):
+    id: Literal["application", "analysis", "review", "offer", "completion"]
+    label: str
+    status: Literal["complete", "awaiting_human_review", "simulation_only"]
+
+
+class WorkflowAnalysisResponse(BaseModel):
+    workflow_id: str
+    mode: Literal["simulation"] = "simulation"
+    prediction: PredictionResponse
+    explanation: ExplanationResponse
+    stages: list[WorkflowStage]
+
+
+class RepaymentOptionsRequest(BaseModel):
+    loan_amount: float = Field(gt=0, le=100_000_000)
+    annual_income: float = Field(gt=0, le=100_000_000)
+    scenario_apr_pct: float = Field(ge=0, le=50)
+    budget_target_pct: float = Field(gt=0, le=100, default=35)
+    term_months: int = Field(ge=1, le=120, default=36)
+
+
+class RepaymentPlan(BaseModel):
+    id: str
+    label: str
+    term_months: int
+    monthly_payment: float
+    total_payment: float
+    total_interest: float
+
+
+class RepaymentOptionsResponse(BaseModel):
+    monthly_income: float
+    budget_target_pct: float
+    plans: list[RepaymentPlan]

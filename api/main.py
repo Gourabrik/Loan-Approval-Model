@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
+from uuid import uuid4
 
 import joblib
 import numpy as np
@@ -10,7 +11,14 @@ import pandas as pd
 from fastapi import FastAPI, Request
 
 from src.explainer import explain_application
-from src.schema import ExplanationResponse, LoanApplication, PredictionResponse
+from src.schema import (
+    ExplanationResponse,
+    LoanApplication,
+    PredictionResponse,
+    RepaymentOptionsRequest,
+    RepaymentOptionsResponse,
+    WorkflowAnalysisResponse,
+)
 from src.trainer import DISCLAIMER
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,7 +76,7 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(
-    title="Loan Risk and Historical Rate API",
+    title="Apsara Finance | Credit Risk API",
     version="1.0.0",
     description=(
         "Educational API for default-risk estimates and historical interest-rate "
@@ -134,6 +142,83 @@ async def explain(
     )
     values["disclaimer"] = DISCLAIMER
     return ExplanationResponse(**values)
+
+
+@app.post("/workflow/analyze", response_model=WorkflowAnalysisResponse)
+async def analyze_workflow(
+    application: LoanApplication, request: Request
+) -> WorkflowAnalysisResponse:
+    """Run the real model analysis and return the remaining demo workflow stages.
+
+    Workflow state is intentionally ephemeral: no applicant data is persisted,
+    no eligibility decision is made, and offer/completion stages are simulations.
+    """
+    prediction = await predict(application, request)
+    explanation = await explain(application, request)
+    return WorkflowAnalysisResponse(
+        workflow_id=str(uuid4()),
+        prediction=prediction,
+        explanation=explanation,
+        stages=[
+            {"id": "application", "label": "Application profile", "status": "complete"},
+            {"id": "analysis", "label": "Model risk analysis", "status": "complete"},
+            {"id": "review", "label": "Human review and safeguards", "status": "awaiting_human_review"},
+            {"id": "offer", "label": "Offer scenario", "status": "simulation_only"},
+            {"id": "completion", "label": "Completion simulation", "status": "simulation_only"},
+        ],
+    )
+
+
+@app.post("/workflow/repayment-options", response_model=RepaymentOptionsResponse)
+async def repayment_options(
+    scenario: RepaymentOptionsRequest,
+) -> RepaymentOptionsResponse:
+    """Calculate illustrative EMI scenarios from user-selected assumptions.
+
+    These are arithmetic comparisons only. The endpoint does not recommend a
+    plan, evaluate eligibility, or persist financial inputs.
+    """
+    monthly_rate = scenario.scenario_apr_pct / 1200
+    terms = sorted({12, 24, 36, 48, 60, 84, 120, scenario.term_months})
+    terms = [term for term in terms if term <= 120]
+    plans = [
+        {
+            "id": f"emi-{term}",
+            "label": f"{term}-month EMI",
+            "term_months": term,
+            "monthly_payment": round(
+                scenario.loan_amount / term
+                if monthly_rate == 0
+                else scenario.loan_amount
+                * monthly_rate
+                * (1 + monthly_rate) ** term
+                / ((1 + monthly_rate) ** term - 1),
+                2,
+            ),
+            "total_payment": 0,
+            "total_interest": 0,
+        }
+        for term in terms
+    ]
+    for plan in plans:
+        plan["total_payment"] = round(plan["monthly_payment"] * plan["term_months"], 2)
+        plan["total_interest"] = round(plan["total_payment"] - scenario.loan_amount, 2)
+    plans.insert(
+        0,
+        {
+            "id": "one-time",
+            "label": "One-time payment",
+            "term_months": 0,
+            "monthly_payment": round(scenario.loan_amount, 2),
+            "total_payment": round(scenario.loan_amount, 2),
+            "total_interest": 0,
+        },
+    )
+    return RepaymentOptionsResponse(
+        monthly_income=round(scenario.annual_income / 12, 2),
+        budget_target_pct=scenario.budget_target_pct,
+        plans=plans,
+    )
 
 
 @app.get("/model-info")
