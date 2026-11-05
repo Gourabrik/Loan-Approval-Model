@@ -1,218 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowRight,
-  BadgeCheck,
-  Banknote,
-  BriefcaseBusiness,
-  Check,
-  ChevronRight,
-  CircleDollarSign,
-  ClipboardCheck,
-  FileSignature,
-  Gauge,
-  LoaderCircle,
-  LockKeyhole,
-  ShieldCheck,
-  Sparkles,
-  UserRoundCheck,
-  WalletCards,
-  XCircle,
-} from 'lucide-react';
+import { ArrowRight, BadgeCheck, Banknote, BarChart3, Check, ChevronRight, CircleCheck, FileCheck2, FileSignature, Gauge, Landmark, LoaderCircle, LockKeyhole, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-const formatCurrency = (amount, digits = 0) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(amount);
-
-const mockKycResponse = {
-  panStatus: 'verified',
-  bureau: 'Northstar Credit Bureau',
-  creditScore: 680,
-  probabilityOfDefault: 12.4,
-};
-
-const steps = [
-  ['01', 'Application'],
-  ['02', 'AI underwriting'],
-  ['03', 'Risk mitigation'],
-  ['04', 'Your offer'],
+const usd = (v, d = 0) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+const phases = [
+  ['01', 'Ingestion & KYC', 'Applicant data, PAN and income signals', FileCheck2, 'cyan'],
+  ['02', 'AI Risk Assessment', 'Credit score, DTI and default probability', BarChart3, 'blue'],
+  ['03', 'Risk Mitigation', 'Assets and co-applicant evaluation', ShieldCheck, 'teal'],
+  ['04', 'Custom Offer & Pricing', 'Rate quote, terms and EMI simulation', FileSignature, 'violet'],
+  ['05', 'e-Sign & Disbursal', 'Secure approval and fund transfer', Landmark, 'indigo'],
 ];
+function Card({ children, className = '' }) { return <section className={`rounded-3xl border border-slate-200 bg-white shadow-[0_16px_45px_-30px_rgba(15,23,42,.32)] ${className}`}>{children}</section>; }
+function Label({ children }) { return <label className="mb-2 block text-[11px] font-bold uppercase tracking-[.13em] text-slate-500">{children}</label>; }
+function Slider({ label, value, min, max, step, display, setValue }) { return <div><div className="mb-3 flex items-center justify-between"><Label>{label}</Label><strong className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-900">{display(value)}</strong></div><input className="premium-range w-full" type="range" min={min} max={max} step={step} value={value} onChange={e => setValue(Number(e.target.value))} /><div className="mt-2 flex justify-between text-[11px] text-slate-400"><span>{display(min)}</span><span>{display(max)}</span></div></div>; }
+function StageRail({ step }) { return <div className="mb-10 overflow-x-auto pb-2"><div className="flex min-w-[760px] items-center justify-between gap-2">{phases.map(([n, name], i) => { const active = step === i + 1, done = step > i + 1; return <div key={n} className="flex items-center gap-2"><div className={`flex items-center gap-2 rounded-full px-3 py-2 ${active ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/15' : done ? 'bg-teal-50 text-teal-700' : 'text-slate-400'}`}><span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${active ? 'bg-white text-slate-900' : done ? 'bg-teal-500 text-white' : 'bg-slate-100'}`}>{done ? <Check className="h-3 w-3" /> : n}</span><span className="text-xs font-semibold">{name}</span></div>{i < 4 && <div className={`h-px w-6 ${done ? 'bg-teal-300' : 'bg-slate-200'}`} />}</div>; })}</div></div>; }
 
-function Panel({ children, className = '' }) {
-  return <section className={`rounded-2xl border border-slate-800 bg-slate-900/75 shadow-xl shadow-black/10 backdrop-blur ${className}`}>{children}</section>;
+export default function App() {
+  const [page, setPage] = useState('home'), [step, setStep] = useState(1), [loading, setLoading] = useState(false), [toast, setToast] = useState(false);
+  const [form, setForm] = useState({ name: '', pan: '', role: 'Product Manager', salary: 8000, amount: 35000, tenure: 48 });
+  const [credit, setCredit] = useState({ score: 680, pd: 12.4 }), [mitigation, setMitigation] = useState('assets'), [coSalary, setCoSalary] = useState('5000'), [term, setTerm] = useState(48);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(false), 4500); return () => clearTimeout(t); }, [toast]);
+  const emi = useMemo(() => { const r = .095 / 12; return form.amount * r * ((1 + r) ** term) / (((1 + r) ** term) - 1); }, [form.amount, term]);
+  const schedule = useMemo(() => { let bal = form.amount; return Array.from({ length: 5 }, (_, i) => { const interest = bal * .095 / 12, principal = emi - interest; bal -= principal; return { n: i + 1, date: new Date(2026, 10 + i, 5).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), principal, interest, total: emi }; }); }, [emi, form.amount]);
+  const start = () => { setPage('journey'); setStep(1); };
+  const submit = () => { setLoading(true); setTimeout(() => { setLoading(false); setStep(2); }, 2000); };
+  const recalc = () => { setLoading(true); setTimeout(() => { setCredit({ score: mitigation === 'assets' ? 716 : 708, pd: mitigation === 'assets' ? 7.8 : 8.6 }); setLoading(false); setStep(4); }, 1100); };
+  const chart = [{ name: 'High debt-to-income', value: .14, fill: '#f97316' }, { name: 'Good credit history', value: -.08, fill: '#14b8a6' }, { name: 'Income stability', value: -.05, fill: '#60a5fa' }];
+  if (page === 'home') return <main className="min-h-screen bg-[#fbfcfe] text-slate-900"><header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-8"><button onClick={() => setPage('home')} className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-900"><Sparkles className="h-4 w-4 text-white" /></span><span className="text-lg font-extrabold tracking-tight">Nexora<span className="text-teal-600">.</span></span></button><div className="hidden items-center gap-7 text-sm font-medium text-slate-500 sm:flex"><a href="#workflow">How it works</a><a href="#security">Security</a></div><button onClick={start} className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700">Start application</button></header><section className="relative mx-auto max-w-7xl overflow-hidden px-6 pb-20 pt-16 lg:px-8 lg:pb-28 lg:pt-24"><div className="absolute right-0 top-0 h-[440px] w-[440px] rounded-full bg-cyan-100/75 blur-3xl" /><div className="relative z-10 grid items-center gap-14 lg:grid-cols-[1.05fr_.95fr]"><div className="animate-enter"><div className="mb-6 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-500" /> INTELLIGENT CREDIT DECISIONS</div><h1 className="max-w-2xl text-5xl font-extrabold leading-[1.06] tracking-[-.05em] text-slate-950 sm:text-6xl">A clearer path to the right loan.</h1><p className="mt-6 max-w-xl text-lg leading-8 text-slate-500">Nexora turns verified financial signals into fair, explainable lending offers—without the complexity.</p><div className="mt-9 flex flex-wrap gap-3"><button onClick={start} className="flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-teal-600/20 transition hover:-translate-y-0.5 hover:bg-teal-700">Check eligibility <ArrowRight className="h-4 w-4" /></button><a href="#workflow" className="rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700">Explore the process</a></div><div className="mt-11 flex flex-wrap gap-x-8 gap-y-3 text-sm text-slate-500"><span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-teal-600" /> Local prototype</span><span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-teal-600" /> Explainable decisions</span></div></div><div className="animate-enter-delayed"><Card className="overflow-hidden p-6 sm:p-8"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-500">Live decision preview</p><p className="mt-1 text-2xl font-bold">Your lending journey</p></div><span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50"><Gauge className="h-5 w-5 text-teal-600" /></span></div><div className="mt-8 space-y-4">{phases.slice(0, 4).map(([n, name, text, Icon], i) => <div className="flex items-center gap-4" key={n}><span className={`grid h-10 w-10 place-items-center rounded-xl ${i === 1 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon className="h-4 w-4" /></span><div className="flex-1"><p className="text-sm font-bold">{name}</p><p className="text-xs text-slate-400">{text}</p></div><ChevronRight className="h-4 w-4 text-slate-300" /></div>)}</div><div className="mt-7 rounded-2xl bg-slate-950 p-5 text-white"><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Starting decision time</p><div className="mt-1 flex items-end justify-between"><p className="text-3xl font-bold">2 minutes</p><span className="text-xs text-teal-300">Secure & simulated</span></div></div></Card></div></div></section><section id="workflow" className="border-y border-slate-200 bg-white py-20"><div className="mx-auto max-w-7xl px-6 lg:px-8"><div className="max-w-2xl"><p className="eyebrow">One intelligent workflow</p><h2 className="mt-3 text-4xl font-extrabold tracking-[-.04em]">Five phases. One straightforward decision.</h2><p className="mt-4 text-lg leading-8 text-slate-500">Inspired by a real underwriting flow, redesigned into a simple experience applicants can actually follow.</p></div><div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{phases.map(([n, name, text, Icon, color], i) => <div key={n} className="workflow-card relative rounded-2xl border border-slate-200 p-5"><span className="text-xs font-bold text-slate-400">PHASE {n}</span><span className={`mt-6 grid h-11 w-11 place-items-center rounded-xl phase-${color}`}><Icon className="h-5 w-5" /></span><h3 className="mt-5 font-bold leading-5">{name}</h3><p className="mt-2 text-sm leading-5 text-slate-500">{text}</p>{i < 4 && <ArrowRight className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 rounded-full border border-slate-200 bg-white p-1 text-slate-400 lg:block" />}</div>)}</div></div></section><section id="security" className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[.75fr_1.25fr] lg:px-8"><div><p className="eyebrow">Built for confidence</p><h2 className="mt-3 text-3xl font-extrabold tracking-[-.04em]">A decision you can see, not just receive.</h2></div><div className="grid gap-4 sm:grid-cols-3">{[['Transparent', 'Every material pricing signal is surfaced.'], ['Adaptive', 'Borderline profiles can add safeguards.'], ['Private', 'No external services are used in this demo.']].map(([title, text]) => <div key={title} className="rounded-2xl bg-slate-100 p-5"><h3 className="font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{text}</p></div>)}</div></section><footer className="border-t border-slate-200 py-7 text-center text-sm text-slate-400">Nexora lending intelligence · Prototype experience</footer></main>;
+  return <main className="min-h-screen bg-[#f7f9fc] text-slate-900"><header className="border-b border-slate-200 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5"><button onClick={() => setPage('home')} className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900"><Sparkles className="h-4 w-4 text-white" /></span><span className="font-extrabold">Nexora<span className="text-teal-600">.</span></span></button><span className="flex items-center gap-2 text-xs font-medium text-slate-400"><LockKeyhole className="h-3.5 w-3.5" /> Protected local preview</span></div></header><div className="mx-auto max-w-6xl px-5 py-9"><StageRail step={step} />
+    {step === 1 && <div className="animate-enter grid gap-6 lg:grid-cols-[1.1fr_.9fr]"><Card className="p-7 sm:p-9"><p className="eyebrow">Phase 01 · Ingestion & KYC</p><h1 className="mt-3 text-3xl font-extrabold tracking-[-.04em]">Start with the essentials.</h1><p className="mt-3 text-slate-500">We use these inputs to simulate identity verification and an explainable risk review.</p><div className="mt-8 grid gap-5 sm:grid-cols-2"><div><Label>Applicant name</Label><input className="input" placeholder="Alex Morgan" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div><div><Label>PAN number</Label><input className="input font-mono uppercase" maxLength="10" placeholder="ABCDE1234F" value={form.pan} onChange={e => setForm({ ...form, pan: e.target.value.toUpperCase() })} /></div><div className="sm:col-span-2"><Label>Job role</Label><select className="input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>{['Product Manager', 'Software Engineer', 'Financial Analyst', 'Healthcare Professional', 'Business Owner'].map(x => <option key={x}>{x}</option>)}</select></div></div><div className="mt-8 space-y-7 border-t border-slate-100 pt-7"><Slider label="Monthly salary" value={form.salary} min={1000} max={20000} step={500} display={v => usd(v)} setValue={salary => setForm({ ...form, salary })} /><Slider label="Desired loan amount" value={form.amount} min={1000} max={100000} step={1000} display={v => usd(v)} setValue={amount => setForm({ ...form, amount })} /><Slider label="Desired tenure" value={form.tenure} min={12} max={72} step={6} display={v => `${v} months`} setValue={tenure => { setForm({ ...form, tenure }); setTerm(tenure); }} /></div><button onClick={submit} className="primary-button mt-9 w-full">Verify KYC & check eligibility <ArrowRight className="h-4 w-4" /></button></Card><aside className="space-y-5"><Card className="p-7"><span className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><FileCheck2 className="h-5 w-5" /></span><h2 className="mt-7 text-xl font-bold">What happens next</h2><div className="mt-5 space-y-4">{['PAN and profile signals are checked', 'Mock credit bureau data is retrieved', 'The AI model explains its decision'].map((x, i) => <div className="flex gap-3 text-sm text-slate-600" key={x}><span className="font-bold text-teal-600">0{i + 1}</span>{x}</div>)}</div></Card><div className="rounded-2xl border border-teal-100 bg-teal-50 p-5 text-sm leading-6 text-teal-800"><strong>Demo only.</strong> All data and decisions stay locally in this browser.</div></aside></div>}
+    {step === 2 && <div className="animate-enter space-y-6"><div><p className="eyebrow">Phase 02 · AI Risk Assessment</p><h1 className="mt-3 text-3xl font-extrabold tracking-[-.04em]">Here is how the model sees this profile.</h1><p className="mt-2 text-slate-500">Credit signals are shown alongside their impact—no black box.</p></div><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><Card className="p-7"><div className="flex items-center justify-between"><p className="font-bold">Default probability</p><BadgeCheck className="h-5 w-5 text-teal-600" /></div><div className="mx-auto mt-8 grid h-52 w-52 place-items-center rounded-full bg-[conic-gradient(#f59e0b_0_42%,#f1f5f9_42%_100%)] p-3"><div className="grid h-full w-full place-items-center rounded-full bg-white text-center"><strong className="text-4xl tracking-[-.05em] text-amber-500">{credit.pd}%</strong><span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Probability of default</span></div></div><div className="mt-7 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-slate-50 p-4"><span className="text-xs text-slate-500">Credit score</span><strong className="mt-1 block text-2xl">{credit.score}</strong></div><div className="rounded-2xl bg-slate-50 p-4"><span className="text-xs text-slate-500">Decision</span><strong className="mt-1 block text-sm text-amber-600">Needs review</strong></div></div></Card><Card className="p-7"><p className="font-bold">SHAP feature contribution</p><p className="mt-1 text-sm text-slate-500">Positive values increase risk; negative values reduce it.</p><div className="mt-5 h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={chart} layout="vertical" margin={{ left: 15, right: 10 }}><XAxis type="number" domain={[-.12, .18]} tickFormatter={v => `${v > 0 ? '+' : ''}${v}`} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} /><YAxis type="category" dataKey="name" width={145} tick={{ fontSize: 11, fill: '#475569' }} axisLine={false} tickLine={false} /><Tooltip formatter={v => [`${Number(v) > 0 ? '+' : ''}${v} risk`, 'Impact']} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 10px 30px rgba(15,23,42,.08)' }} /><Bar dataKey="value" radius={5}>{chart.map(d => <Cell key={d.name} fill={d.fill} />)}</Bar></BarChart></ResponsiveContainer></div><div className="mt-4 flex gap-3"><div className="rounded-xl bg-orange-50 px-3 py-2 text-xs text-orange-700">+0.14 · High DTI</div><div className="rounded-xl bg-teal-50 px-3 py-2 text-xs text-teal-700">−0.08 · Credit history</div></div></Card></div><button onClick={() => setStep(3)} className="primary-button w-full">Review available safeguards <ChevronRight className="h-4 w-4" /></button></div>}
+    {step === 3 && <div className="animate-enter mx-auto max-w-4xl"><Card className="p-7 sm:p-10"><div className="text-center"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-teal-50 text-teal-600"><ShieldCheck className="h-6 w-6" /></span><p className="eyebrow mt-5">Phase 03 · Risk Mitigation</p><h1 className="mt-3 text-3xl font-extrabold tracking-[-.04em]">A little more context can improve the offer.</h1><p className="mt-3 text-slate-500">This profile is close to qualifying. Choose one option to strengthen repayment confidence.</p></div><div className="mt-9 grid gap-4 md:grid-cols-2"><button onClick={() => setMitigation('assets')} className={`choice-card text-left ${mitigation === 'assets' ? 'choice-active' : ''}`}><Banknote className="h-6 w-6 text-teal-600" /><h2>Verify liquid assets</h2><p>Confirm a mock balance of $18,400 available for repayments.</p>{mitigation === 'assets' && <span className="mt-4 flex items-center gap-2 text-xs font-bold text-teal-700"><Check className="h-4 w-4" /> Verified successfully</span>}</button><button onClick={() => setMitigation('co')} className={`choice-card text-left ${mitigation === 'co' ? 'choice-active' : ''}`}><UsersRound className="h-6 w-6 text-violet-600" /><h2>Add a co-applicant</h2><p>Add another regular income source to the affordability calculation.</p>{mitigation === 'co' && <div className="mt-4"><Label>Co-applicant monthly salary</Label><input className="input" type="number" value={coSalary} onClick={e => e.stopPropagation()} onChange={e => setCoSalary(e.target.value)} /></div>}</button></div><button onClick={recalc} className="primary-button mt-8 w-full">Recalculate the offer <ArrowRight className="h-4 w-4" /></button></Card></div>}
+    {step === 4 && <div className="animate-enter space-y-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="eyebrow">Phase 04 · Custom Offer & Pricing</p><h1 className="mt-3 text-3xl font-extrabold tracking-[-.04em]">A fair offer, tailored to the term you choose.</h1></div><span className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700"><BadgeCheck className="h-4 w-4" /> Approved</span></div><div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr]"><Card className="overflow-hidden p-7"><p className="text-sm font-semibold text-slate-500">Approved loan amount</p><h2 className="mt-4 text-5xl font-extrabold tracking-[-.06em]">{usd(form.amount)}</h2><div className="mt-8 grid grid-cols-2 gap-3 border-t border-slate-100 pt-6"><div><p className="text-xs text-slate-400">Fixed rate</p><strong className="mt-1 block text-xl">9.50% APR</strong></div><div><p className="text-xs text-slate-400">Monthly EMI</p><strong className="mt-1 block text-xl text-teal-600">{usd(emi)}</strong></div></div></Card><Card className="p-7"><div className="flex justify-between"><div><p className="font-bold">Choose your term</p><p className="mt-1 text-sm text-slate-500">Move the slider to update the payment instantly.</p></div><strong className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm">{term} months</strong></div><input className="premium-range mt-12 w-full" type="range" min="12" max="72" step="6" value={term} onChange={e => setTerm(Number(e.target.value))} /><div className="mt-2 flex justify-between text-xs text-slate-400"><span>12 months</span><span>72 months</span></div><div className="mt-8 rounded-2xl bg-slate-950 p-5 text-white"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Estimated monthly EMI</p><p className="mt-2 text-4xl font-extrabold tracking-[-.04em]">{usd(emi, 2)}</p></div></Card></div><Card className="overflow-hidden"><div className="border-b border-slate-100 px-6 py-5"><h2 className="font-bold">First five payments</h2><p className="mt-1 text-sm text-slate-500">Illustrative schedule with principal and interest split.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-400"><tr>{['Payment', 'Due date', 'Principal', 'Interest', 'Total due'].map(x => <th className="px-6 py-4 font-bold" key={x}>{x}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{schedule.map(r => <tr key={r.n}><td className="px-6 py-4 font-bold text-teal-700">{String(r.n).padStart(2, '0')}</td><td className="px-6 py-4 text-slate-500">{r.date}</td><td className="px-6 py-4">{usd(r.principal, 2)}</td><td className="px-6 py-4 text-slate-500">{usd(r.interest, 2)}</td><td className="px-6 py-4 font-semibold">{usd(r.total, 2)}</td></tr>)}</tbody></table></div></Card><button onClick={() => { setStep(5); setToast(true); }} className="primary-button w-full">e-Sign & disburse funds <FileSignature className="h-4 w-4" /></button></div>}
+    {step === 5 && <div className="animate-enter mx-auto max-w-2xl"><Card className="p-10 text-center"><span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-teal-50"><Check className="h-8 w-8 text-teal-600" /></span><p className="eyebrow mt-6">Phase 05 · e-Sign & Disbursal</p><h1 className="mt-3 text-3xl font-extrabold tracking-[-.04em]">Offer accepted. Funds are queued.</h1><p className="mx-auto mt-4 max-w-md text-slate-500">Your prototype e-signature has been recorded. The transfer would now be securely triggered.</p><div className="mt-8 rounded-2xl bg-slate-50 p-5 text-left"><div className="flex items-center justify-between"><span className="text-sm text-slate-500">Disbursal amount</span><strong>{usd(form.amount)}</strong></div><div className="mt-3 flex items-center justify-between"><span className="text-sm text-slate-500">Status</span><span className="font-bold text-teal-600">Ready for transfer</span></div></div><button onClick={() => { setPage('home'); setStep(1); }} className="mt-8 text-sm font-bold text-slate-600 underline underline-offset-4">Return to home</button></Card></div>}
+  </div>{loading && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/20 p-5 backdrop-blur-sm"><Card className="w-full max-w-sm p-8 text-center"><LoaderCircle className="mx-auto h-9 w-9 animate-spin text-teal-600" /><h2 className="mt-5 font-bold">{step === 1 ? 'Verifying PAN and fetching bureau data…' : 'Updating the risk model…'}</h2><p className="mt-2 text-sm text-slate-500">This takes just a moment in the prototype.</p></Card></div>}{toast && <div className="animate-toast fixed bottom-6 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-2xl bg-slate-950 p-4 text-white shadow-2xl"><span className="grid h-9 w-9 place-items-center rounded-full bg-teal-400"><Check className="h-5 w-5 text-slate-950" /></span><div><strong className="text-sm">e-Signature accepted</strong><p className="text-xs text-slate-300">Funds are ready for simulated disbursal.</p></div></div>}</main>;
 }
-
-function FieldLabel({ children }) {
-  return <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{children}</label>;
-}
-
-function SliderField({ label, value, min, max, step, prefix = '', suffix = '', onChange, helper }) {
-  return (
-    <div>
-      <div className="mb-3 flex items-end justify-between gap-4">
-        <div>
-          <FieldLabel>{label}</FieldLabel>
-          {helper && <p className="text-xs text-slate-500">{helper}</p>}
-        </div>
-        <div className="rounded-lg border border-teal-400/20 bg-teal-400/10 px-3 py-1.5 font-mono text-sm font-bold text-teal-300">
-          {prefix}{value.toLocaleString()}{suffix}
-        </div>
-      </div>
-      <input className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-700" type="range" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} />
-      <div className="mt-2 flex justify-between text-[11px] text-slate-500"><span>{prefix}{min.toLocaleString()}{suffix}</span><span>{prefix}{max.toLocaleString()}{suffix}</span></div>
-    </div>
-  );
-}
-
-function RiskGauge({ pd }) {
-  const dash = 251;
-  const percent = Math.min(pd / 30, 1);
-  const offset = dash - dash * percent;
-  const tone = pd <= 8 ? 'text-emerald-400' : pd <= 16 ? 'text-amber-400' : 'text-rose-400';
-  const status = pd <= 8 ? 'Low risk' : pd <= 16 ? 'Monitor risk' : 'High risk';
-  return (
-    <div className="relative mx-auto h-56 w-56">
-      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-        <circle cx="50" cy="50" r="40" fill="none" stroke="#1e293b" strokeWidth="10" />
-        <circle cx="50" cy="50" r="40" fill="none" stroke="url(#riskGradient)" strokeWidth="10" strokeLinecap="round" strokeDasharray={dash} strokeDashoffset={offset} className="transition-all duration-700" />
-        <defs><linearGradient id="riskGradient"><stop stopColor="#2dd4bf" /><stop offset="0.52" stopColor="#fbbf24" /><stop offset="1" stopColor="#fb7185" /></linearGradient></defs>
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`font-mono text-4xl font-bold ${tone}`}>{pd}%</span>
-        <span className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-400">probability of default</span>
-        <span className={`mt-3 text-sm font-semibold ${tone}`}>{status}</span>
-      </div>
-    </div>
-  );
-}
-
-function App() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(false);
-  const [form, setForm] = useState({ name: '', pan: '', role: 'Product manager', salary: 8000, loanAmount: 35000, tenure: 48 });
-  const [credit, setCredit] = useState(null);
-  const [mitigation, setMitigation] = useState('assets');
-  const [coApplicantSalary, setCoApplicantSalary] = useState('5000');
-  const [offerTenure, setOfferTenure] = useState(48);
-
-  useEffect(() => {
-    if (!toast) return undefined;
-    const id = setTimeout(() => setToast(false), 5000);
-    return () => clearTimeout(id);
-  }, [toast]);
-
-  const monthlyRate = 0.095 / 12;
-  const emi = useMemo(() => {
-    const n = offerTenure;
-    const r = monthlyRate;
-    return form.loanAmount * r * ((1 + r) ** n) / (((1 + r) ** n) - 1);
-  }, [form.loanAmount, offerTenure]);
-
-  const amortization = useMemo(() => {
-    let balance = form.loanAmount;
-    const nextMonths = [];
-    const start = new Date();
-    for (let installment = 1; installment <= 5; installment += 1) {
-      const interest = balance * monthlyRate;
-      const principal = emi - interest;
-      const date = new Date(start.getFullYear(), start.getMonth() + installment, 5);
-      nextMonths.push({ installment, date: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), principal, interest, total: emi });
-      balance -= principal;
-    }
-    return nextMonths;
-  }, [emi, form.loanAmount]);
-
-  const submitApplication = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setCredit(mockKycResponse);
-      setLoading(false);
-      setCurrentStep(2);
-    }, 2000);
-  };
-
-  const recalculateRisk = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setCredit((previous) => ({
-        ...previous,
-        creditScore: mitigation === 'assets' ? 716 : 708,
-        probabilityOfDefault: mitigation === 'assets' ? 7.8 : 8.6,
-      }));
-      setLoading(false);
-      setCurrentStep(4);
-    }, 1200);
-  };
-
-  const chartData = [
-    { factor: 'High debt-to-income', contribution: 0.14, fill: '#fb7185' },
-    { factor: 'Good credit history', contribution: -0.08, fill: '#34d399' },
-    { factor: 'Income stability', contribution: -0.05, fill: '#2dd4bf' },
-  ];
-
-  return (
-    <main className="min-h-screen overflow-hidden bg-gray-950 text-slate-100 selection:bg-teal-400/30">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(45,212,191,0.10),transparent_28%),radial-gradient(circle_at_85%_0%,rgba(168,85,247,0.10),transparent_28%)]" />
-      <div className="relative mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
-        <header className="mb-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-teal-300 to-violet-500 shadow-glow"><Sparkles className="h-5 w-5 text-slate-950" /></div>
-            <div><h1 className="text-xl font-bold tracking-tight text-white">Prism<span className="text-teal-300">Credit</span></h1><p className="text-xs text-slate-500">AI risk-based loan pricing engine</p></div>
-          </div>
-          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-400"><LockKeyhole className="h-3.5 w-3.5 text-teal-300" /> Mock environment · No data leaves your browser</div>
-        </header>
-
-        <nav className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {steps.map(([number, label]) => {
-            const active = Number(number) === currentStep;
-            const finished = Number(number) < currentStep;
-            return <div key={number} className={`flex items-center gap-3 rounded-xl border px-3 py-3 ${active ? 'border-teal-400/40 bg-teal-400/10' : 'border-slate-800 bg-slate-900/50'}`}><span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold ${finished ? 'bg-teal-400 text-slate-950' : active ? 'bg-violet-400 text-slate-950' : 'bg-slate-800 text-slate-500'}`}>{finished ? <Check className="h-3.5 w-3.5" /> : number}</span><span className={`text-xs font-semibold ${active ? 'text-teal-200' : 'text-slate-500'}`}>{label}</span></div>;
-          })}
-        </nav>
-
-        {currentStep === 1 && <section className="animate-fade-up grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-          <Panel className="p-6 sm:p-8">
-            <div className="mb-8"><span className="text-xs font-bold uppercase tracking-[0.18em] text-teal-300">New application</span><h2 className="mt-2 text-3xl font-bold tracking-tight text-white">Tell us about the applicant.</h2><p className="mt-2 text-sm text-slate-400">We’ll verify identity and ask our underwriting model for a decision.</p></div>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div><FieldLabel>Applicant name</FieldLabel><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Alex Morgan" className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none transition placeholder:text-slate-600 focus:border-teal-400" /></div>
-              <div><FieldLabel>PAN number</FieldLabel><input value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value.toUpperCase() })} placeholder="ABCDE1234F" maxLength="10" className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-sm uppercase outline-none transition placeholder:font-sans placeholder:text-slate-600 focus:border-teal-400" /></div>
-              <div className="sm:col-span-2"><FieldLabel>Job role</FieldLabel><div className="relative"><BriefcaseBusiness className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-500" /><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm outline-none focus:border-teal-400"><option>Product manager</option><option>Software engineer</option><option>Financial analyst</option><option>Healthcare professional</option><option>Small business owner</option></select></div></div>
-            </div>
-            <div className="mt-8 space-y-7 border-t border-slate-800 pt-7">
-              <SliderField label="Monthly salary" value={form.salary} min={1000} max={20000} step={500} prefix="$" onChange={(salary) => setForm({ ...form, salary })} />
-              <SliderField label="Desired loan amount" value={form.loanAmount} min={1000} max={100000} step={1000} prefix="$" onChange={(loanAmount) => setForm({ ...form, loanAmount })} />
-              <SliderField label="Desired tenure" value={form.tenure} min={12} max={72} step={6} suffix=" months" onChange={(tenure) => { setForm({ ...form, tenure }); setOfferTenure(tenure); }} />
-            </div>
-            <button onClick={submitApplication} disabled={loading} className="mt-9 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-300 to-cyan-400 px-5 py-4 text-sm font-bold text-slate-950 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70"><ShieldCheck className="h-5 w-5" /> Submit & Verify KYC <ArrowRight className="h-4 w-4" /></button>
-          </Panel>
-          <aside className="space-y-5">
-            <Panel className="overflow-hidden"><div className="border-b border-slate-800 bg-gradient-to-br from-violet-500/20 to-slate-900 p-6"><Gauge className="h-7 w-7 text-violet-300" /><h3 className="mt-6 text-lg font-bold text-white">Fair, explainable decisions.</h3><p className="mt-2 text-sm leading-6 text-slate-400">Your offer is calculated from verifiable signals—not a black box.</p></div><div className="space-y-4 p-6">{['Secure PAN validation', 'Credit bureau simulation', 'Transparent pricing logic'].map((item) => <div className="flex items-center gap-3 text-sm text-slate-300" key={item}><span className="grid h-6 w-6 place-items-center rounded-full bg-teal-400/10"><Check className="h-3.5 w-3.5 text-teal-300" /></span>{item}</div>)}</div></Panel>
-            <div className="rounded-2xl border border-violet-400/15 bg-violet-400/5 p-5 text-sm text-violet-100"><span className="font-semibold">Prototype note:</span> all identity, credit, and income signals are locally mocked.</div>
-          </aside>
-        </section>}
-
-        {currentStep === 2 && credit && <section className="animate-fade-up space-y-6">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><span className="text-xs font-bold uppercase tracking-[0.18em] text-teal-300">AI underwriting</span><h2 className="mt-2 text-3xl font-bold tracking-tight text-white">Risk profile, explained.</h2><p className="mt-2 text-sm text-slate-400">Identity verified with {credit.bureau}. Here’s the model’s current view.</p></div><div className="flex items-center gap-2 self-start rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-300"><BadgeCheck className="h-4 w-4" /> PAN verified</div></div>
-          <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <Panel className="p-6 sm:p-8"><div className="mb-2 flex items-center justify-between"><span className="text-sm font-semibold text-slate-200">AI risk gauge</span><Gauge className="h-5 w-5 text-slate-500" /></div><RiskGauge pd={credit.probabilityOfDefault} /><div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-5"><div className="rounded-xl bg-slate-950 p-4"><span className="text-xs text-slate-500">Credit score</span><p className="mt-1 text-2xl font-bold text-white">{credit.creditScore}</p><p className="text-xs text-amber-300">Fair band</p></div><div className="rounded-xl bg-slate-950 p-4"><span className="text-xs text-slate-500">Requested</span><p className="mt-1 text-2xl font-bold text-white">{formatCurrency(form.loanAmount)}</p><p className="text-xs text-teal-300">{form.tenure} months</p></div></div></Panel>
-            <Panel className="p-6 sm:p-8"><div className="mb-6"><span className="text-sm font-semibold text-slate-200">SHAP Feature Contribution</span><p className="mt-1 text-sm text-slate-500">How each signal moved the model’s default-risk estimate.</p></div><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 15, left: 12, bottom: 5 }}><XAxis type="number" domain={[-0.12, 0.18]} tickFormatter={(value) => `${value > 0 ? '+' : ''}${value.toFixed(2)}`} stroke="#64748b" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis dataKey="factor" type="category" width={130} stroke="#94a3b8" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip cursor={{ fill: 'rgba(148,163,184,.06)' }} formatter={(value) => [`${Number(value) > 0 ? '+' : ''}${Number(value).toFixed(2)} risk`, 'Contribution']} contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 12 }} /><Bar dataKey="contribution" radius={[5, 5, 5, 5]}>{chartData.map((entry) => <Cell key={entry.factor} fill={entry.fill} />)}</Bar></BarChart></ResponsiveContainer></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-rose-400/15 bg-rose-400/5 p-3 text-xs text-rose-200"><strong>+0.14 risk</strong><br />High debt-to-income</div><div className="rounded-lg border border-emerald-400/15 bg-emerald-400/5 p-3 text-xs text-emerald-200"><strong>−0.08 risk</strong><br />Good credit history</div></div></Panel>
-          </div>
-          {credit.creditScore > 700 ? <button onClick={() => setCurrentStep(4)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-4 text-sm font-bold text-slate-950"><Check className="h-5 w-5" /> Approve & generate offer</button> : credit.creditScore >= 600 ? <button onClick={() => setCurrentStep(3)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-400 to-fuchsia-400 px-5 py-4 text-sm font-bold text-slate-950"><Sparkles className="h-5 w-5" /> Mitigate Risk <ChevronRight className="h-4 w-4" /></button> : <div className="flex items-center gap-3 rounded-xl border border-rose-400/25 bg-rose-400/10 p-5 text-rose-100"><XCircle className="h-6 w-6 shrink-0 text-rose-400" /><div><p className="font-semibold">Hard reject</p><p className="text-sm text-rose-200/75">This profile does not meet the minimum score threshold.</p></div></div>}
-        </section>}
-
-        {currentStep === 3 && <section className="animate-fade-up mx-auto max-w-3xl"><Panel className="p-6 sm:p-9"><div className="text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-violet-400/10"><WalletCards className="h-6 w-6 text-violet-300" /></div><span className="mt-5 block text-xs font-bold uppercase tracking-[0.18em] text-violet-300">Fallback loop</span><h2 className="mt-2 text-3xl font-bold tracking-tight text-white">Applicant profile is borderline.</h2><p className="mt-3 text-slate-400">Choose a mitigation strategy to improve the decision signal.</p></div><div className="mt-9 grid gap-4 md:grid-cols-2"><button onClick={() => setMitigation('assets')} className={`rounded-2xl border p-5 text-left transition ${mitigation === 'assets' ? 'border-teal-400 bg-teal-400/10 shadow-glow' : 'border-slate-700 bg-slate-950 hover:border-slate-500'}`}><div className="flex items-start justify-between"><Banknote className="h-6 w-6 text-teal-300" /><span className={`grid h-5 w-5 place-items-center rounded-full border ${mitigation === 'assets' ? 'border-teal-300 bg-teal-300' : 'border-slate-600'}`}>{mitigation === 'assets' && <Check className="h-3.5 w-3.5 text-slate-950" />}</span></div><h3 className="mt-5 font-bold text-white">Verify liquid assets</h3><p className="mt-2 text-sm leading-6 text-slate-400">Confirm sufficient reserves with a mock bank-balance check.</p>{mitigation === 'assets' && <div className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-400/10 p-3 text-xs font-medium text-emerald-300"><BadgeCheck className="h-4 w-4" /> Bank balance verified: $18,400</div>}</button><button onClick={() => setMitigation('coApplicant')} className={`rounded-2xl border p-5 text-left transition ${mitigation === 'coApplicant' ? 'border-violet-400 bg-violet-400/10 shadow-purple' : 'border-slate-700 bg-slate-950 hover:border-slate-500'}`}><div className="flex items-start justify-between"><UserRoundCheck className="h-6 w-6 text-violet-300" /><span className={`grid h-5 w-5 place-items-center rounded-full border ${mitigation === 'coApplicant' ? 'border-violet-300 bg-violet-300' : 'border-slate-600'}`}>{mitigation === 'coApplicant' && <Check className="h-3.5 w-3.5 text-slate-950" />}</span></div><h3 className="mt-5 font-bold text-white">Add co-applicant</h3><p className="mt-2 text-sm leading-6 text-slate-400">Add household earnings to strengthen repayment capacity.</p>{mitigation === 'coApplicant' && <div className="mt-4"><FieldLabel>Co-applicant monthly salary</FieldLabel><input type="number" value={coApplicantSalary} onClick={(e) => e.stopPropagation()} onChange={(e) => setCoApplicantSalary(e.target.value)} className="w-full rounded-lg border border-violet-400/30 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-violet-300" /></div>}</button></div><button onClick={recalculateRisk} disabled={loading} className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-300 to-cyan-400 px-5 py-4 text-sm font-bold text-slate-950 disabled:opacity-70"><Sparkles className="h-5 w-5" /> Recalculate Risk</button></Panel></section>}
-
-        {currentStep === 4 && <section className="animate-fade-up space-y-6"><div className="text-center"><span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Pricing phase</span><h2 className="mt-2 text-3xl font-bold tracking-tight text-white">A personalized offer is ready.</h2><p className="mt-2 text-sm text-slate-400">Adjust the term to find the payment that fits.</p></div><div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]"><Panel className="relative overflow-hidden p-7 sm:p-8"><div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-teal-400/10 blur-3xl" /><div className="relative"><div className="flex items-center justify-between"><span className="text-sm font-semibold text-slate-300">Approved loan amount</span><CircleDollarSign className="h-6 w-6 text-teal-300" /></div><p className="mt-6 text-5xl font-bold tracking-tight text-white">{formatCurrency(form.loanAmount)}</p><div className="mt-6 flex items-center gap-2 text-sm text-emerald-300"><BadgeCheck className="h-5 w-5" /> Approved following AI risk review</div><div className="mt-9 grid grid-cols-2 gap-3 border-t border-slate-800 pt-6"><div><span className="text-xs text-slate-500">Fixed APR</span><p className="mt-1 text-xl font-bold">9.50%</p></div><div><span className="text-xs text-slate-500">Monthly EMI</span><p className="mt-1 text-xl font-bold text-teal-300">{formatCurrency(emi)}</p></div></div></div></Panel><Panel className="p-7 sm:p-8"><div className="flex items-center justify-between"><div><span className="text-sm font-semibold text-slate-200">Adjust tenure</span><p className="mt-1 text-sm text-slate-500">Longer terms lower the monthly payment.</p></div><span className="rounded-lg bg-violet-400/10 px-3 py-2 font-mono text-sm font-bold text-violet-300">{offerTenure} mo</span></div><input className="mt-12 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-700" type="range" min="12" max="72" step="6" value={offerTenure} onChange={(e) => setOfferTenure(Number(e.target.value))} /><div className="mt-2 flex justify-between text-xs text-slate-500"><span>12 mo</span><span>72 mo</span></div><div className="mt-8 rounded-xl border border-teal-400/15 bg-teal-400/5 p-5"><span className="text-xs font-semibold uppercase tracking-wider text-teal-300">Estimated monthly EMI</span><p className="mt-2 text-4xl font-bold text-white">{formatCurrency(emi, 2)}</p><p className="mt-2 text-xs text-slate-400">Principal and interest. No prepayment penalty in this prototype.</p></div></Panel></div><Panel className="overflow-hidden"><div className="flex items-center justify-between border-b border-slate-800 px-6 py-5"><div><h3 className="font-bold text-white">Payment schedule</h3><p className="mt-1 text-xs text-slate-500">First five projected installments</p></div><ClipboardCheck className="h-5 w-5 text-slate-500" /></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-6 py-4 font-semibold">Installment</th><th className="px-6 py-4 font-semibold">Date</th><th className="px-6 py-4 text-right font-semibold">Principal</th><th className="px-6 py-4 text-right font-semibold">Interest</th><th className="px-6 py-4 text-right font-semibold">Total due</th></tr></thead><tbody className="divide-y divide-slate-800">{amortization.map((row) => <tr key={row.installment} className="text-slate-300"><td className="px-6 py-4 font-mono text-teal-300">{String(row.installment).padStart(2, '0')}</td><td className="px-6 py-4">{row.date}</td><td className="px-6 py-4 text-right">{formatCurrency(row.principal, 2)}</td><td className="px-6 py-4 text-right text-slate-400">{formatCurrency(row.interest, 2)}</td><td className="px-6 py-4 text-right font-semibold text-white">{formatCurrency(row.total, 2)}</td></tr>)}</tbody></table></div></Panel><button onClick={() => setToast(true)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300 px-5 py-4 text-sm font-bold text-slate-950 transition hover:brightness-110"><FileSignature className="h-5 w-5" /> e-Sign & Disburse Funds</button></section>}
-      </div>
-      {loading && <div className="fixed inset-0 z-50 grid place-items-center bg-gray-950/85 p-5 backdrop-blur-sm"><div className="w-full max-w-sm rounded-2xl border border-teal-400/20 bg-slate-900 p-7 text-center shadow-2xl"><LoaderCircle className="mx-auto h-10 w-10 animate-spin text-teal-300" /><h3 className="mt-5 text-lg font-bold text-white">{currentStep === 1 ? 'Verifying PAN & fetching credit bureau data...' : 'Recalculating model risk...'}</h3><p className="mt-2 text-sm text-slate-400">Our simulated decision engine is processing secure signals.</p></div></div>}
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 flex w-[calc(100%-2.5rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-2xl border border-emerald-300/25 bg-emerald-400 px-5 py-4 text-slate-950 shadow-2xl"><div className="grid h-9 w-9 place-items-center rounded-full bg-white/40"><Check className="h-5 w-5" /></div><div><p className="font-bold">Funds queued for disbursement!</p><p className="text-xs font-medium opacity-80">e-Signature accepted in this prototype.</p></div></div>}
-    </main>
-  );
-}
-
-export default App;

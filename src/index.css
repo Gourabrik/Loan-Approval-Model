@@ -2,22 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #e5e7eb;
-  background: #030712;
-  font-synthesis: none;
-}
-
+:root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; background: #f8fafc; font-synthesis: none; }
+html { scroll-behavior: smooth; }
 body { min-width: 320px; min-height: 100vh; }
-
-input[type='range'] {
-  accent-color: #2dd4bf;
-}
-
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-up { animation: fade-up 450ms ease-out both; }
+.eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #0f9d8a; }
+.input { width: 100%; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: .8rem .9rem; font-size: .875rem; color: #0f172a; outline: none; transition: border-color .2s, box-shadow .2s; }
+.input:focus { border-color: #14b8a6; box-shadow: 0 0 0 4px rgba(20,184,166,.1); }
+.premium-range { height: 5px; cursor: pointer; appearance: none; border-radius: 999px; background: linear-gradient(90deg, #14b8a6, #99f6e4); }
+.premium-range::-webkit-slider-thumb { width: 19px; height: 19px; appearance: none; border: 4px solid white; border-radius: 999px; background: #0f766e; box-shadow: 0 2px 8px rgba(15,118,110,.35); }
+.primary-button { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; border-radius: .85rem; background: #0f172a; padding: .9rem 1.25rem; font-size: .875rem; font-weight: 700; color: white; transition: transform .2s, background .2s, box-shadow .2s; }
+.primary-button:hover { transform: translateY(-1px); background: #1e293b; box-shadow: 0 12px 22px -12px rgba(15,23,42,.45); }
+.choice-card { border: 1px solid #e2e8f0; border-radius: 20px; padding: 1.4rem; transition: border .2s, background .2s, box-shadow .2s; }.choice-card:hover { border-color: #94a3b8; }.choice-card h2 { margin-top: 1.25rem; font-weight: 700; }.choice-card p { margin-top: .4rem; font-size: .875rem; line-height: 1.5rem; color: #64748b; }.choice-active { border-color: #14b8a6; background: #f0fdfa; box-shadow: 0 10px 25px -20px rgba(13,148,136,.6); }
+.phase-cyan { background: #ecfeff; color: #0e7490; }.phase-blue { background: #eff6ff; color: #2563eb; }.phase-teal { background: #f0fdfa; color: #0f766e; }.phase-violet { background: #f5f3ff; color: #7c3aed; }.phase-indigo { background: #eef2ff; color: #4f46e5; }
+.workflow-card { transition: transform .25s ease, box-shadow .25s ease; }.workflow-card:hover { transform: translateY(-5px); box-shadow: 0 16px 30px -23px rgba(15,23,42,.42); }
+@keyframes enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } } @keyframes toast { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.animate-enter { animation: enter .55s cubic-bezier(.16,1,.3,1) both; }.animate-enter-delayed { animation: enter .65s .12s cubic-bezier(.16,1,.3,1) both; }.animate-toast { animation: toast .35s cubic-bezier(.16,1,.3,1) both; }
