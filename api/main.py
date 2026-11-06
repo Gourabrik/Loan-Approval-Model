@@ -9,6 +9,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.explainer import explain_application
 from src.schema import (
@@ -83,6 +84,13 @@ app = FastAPI(
         "patterns. It does not make approval decisions or recommend rates."
     ),
     lifespan=lifespan,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
