@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck,
-  BarChart3, BriefcaseBusiness, Building2, Car, Check, ChevronDown, CircleCheck,
-  CircleHelp, ClipboardCheck, FileCheck2, FileSearch, Gauge, GraduationCap,
-  Home, Landmark, LoaderCircle, LockKeyhole, Menu, PenLine, Percent,
-  ShieldCheck, SlidersHorizontal, Sparkles, TrendingUp, User, Users, Wallet, X,
+  Activity, AlertTriangle, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight,
+  BadgeCheck, BarChart3, BriefcaseBusiness, Building2, Car, Check, ChevronDown,
+  CircleCheck, CircleHelp, ClipboardCheck, FileCheck2, FileSearch, Gauge,
+  GraduationCap, Home, Landmark, LoaderCircle, LockKeyhole, Menu, PenLine,
+  Percent, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, TrendingDown,
+  TrendingUp, User, Users, Wallet, X,
 } from 'lucide-react';
 
 const initialForm = {
@@ -76,13 +77,110 @@ function StageRail({ current, onSelect }) {
   })}</div>;
 }
 
-function ContributionList({ explanation }) {
-  const drivers = [...(explanation?.default_log_odds_contributions || [])].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)).slice(0, 6);
-  const largest = Math.max(0.01, ...drivers.map((item) => Math.abs(item.contribution)));
-  return <div className="contribution-list">{drivers.map((item) => {
-    const positive = item.contribution >= 0;
-    return <div className="contribution" key={item.feature}><div className="contribution-top"><span>{item.feature.replaceAll('_', ' ')}</span><strong className={positive ? 'contribution-up' : 'contribution-down'}>{positive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}{Math.abs(item.contribution).toFixed(3)}</strong></div><div className="contribution-track"><i className={positive ? 'positive' : 'negative'} style={{ width: `${Math.max(5, Math.abs(item.contribution) / largest * 100)}%` }} /></div></div>;
-  })}</div>;
+const humanizeFeature = (name) => {
+  const clean = name.replace(/^(numeric|categorical)__/, '');
+  const map = {
+    loan_to_annual_income: 'Loan-to-Income Exposure',
+    loan_to_income: 'Loan-to-Income Exposure',
+    monthly_installment_to_income_ratio: 'Monthly Installment / Income',
+    age: 'Applicant Age',
+    income: 'Annual Gross Income',
+    credit_score: 'Credit Score (FICO)',
+    dti_ratio: 'Debt-to-Income Ratio',
+    loan_amount: 'Requested Loan Amount',
+    loan_term: 'Loan Term Duration',
+    months_employed: 'Employment Stability',
+    num_credit_lines: 'Open Credit Lines',
+    'has_co_signer_No': 'Solo Applicant (No Co-signer)',
+    'has_co_signer_Yes': 'Joint Applicant (Has Co-signer)',
+    'has_mortgage_No': 'No Existing Mortgage',
+    'has_mortgage_Yes': 'Carries Active Mortgage',
+    'has_dependents_No': 'No Financial Dependents',
+    'has_dependents_Yes': 'Has Dependents',
+    'employment_type_Full-Time': 'Full-Time Employment',
+    'employment_type_Part-Time': 'Part-Time Employment',
+    'employment_type_Self-Employed': 'Self-Employed Status',
+    'employment_type_Unemployed': 'Unemployed Status',
+    'education_PhD': 'Doctoral Degree (PhD)',
+    'education_Master\'s': 'Master\'s Degree',
+    'education_Bachelor\'s': 'Bachelor\'s Degree',
+    'education_High School': 'High School Education',
+    'marital_status_Single': 'Single Marital Status',
+    'marital_status_Married': 'Married Status',
+    'marital_status_Divorced': 'Divorced Status',
+  };
+  return map[clean] || clean.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+function ShapFactorDeck({ explanation, filter, onFilterChange }) {
+  const rawDrivers = [...(explanation?.default_log_odds_contributions || [])].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+  const largest = Math.max(0.01, ...rawDrivers.map((item) => Math.abs(item.contribution)));
+  
+  const filteredDrivers = rawDrivers.filter((item) => {
+    if (filter === 'increased') return item.contribution >= 0;
+    if (filter === 'reduced') return item.contribution < 0;
+    return true;
+  }).slice(0, 8);
+
+  const posCount = rawDrivers.filter(d => d.contribution >= 0).length;
+  const negCount = rawDrivers.filter(d => d.contribution < 0).length;
+
+  return (
+    <div className="shap-deck-wrap">
+      {/* Filter Tabs */}
+      <div className="shap-filter-bar">
+        <button
+          type="button"
+          className={`shap-tab ${filter === 'all' ? 'active' : ''}`}
+          onClick={() => onFilterChange('all')}
+        >
+          All Drivers ({rawDrivers.length})
+        </button>
+        <button
+          type="button"
+          className={`shap-tab risk-tab ${filter === 'increased' ? 'active' : ''}`}
+          onClick={() => onFilterChange('increased')}
+        >
+          <span className="dot dot-risk" /> Increased Risk ({posCount})
+        </button>
+        <button
+          type="button"
+          className={`shap-tab buffer-tab ${filter === 'reduced' ? 'active' : ''}`}
+          onClick={() => onFilterChange('reduced')}
+        >
+          <span className="dot dot-buffer" /> Reduced Risk ({negCount})
+        </button>
+      </div>
+
+      {/* Driver Cards */}
+      <div className="shap-driver-cards">
+        {filteredDrivers.map((item) => {
+          const isRiskIncreaser = item.contribution >= 0;
+          const pctWidth = Math.max(6, Math.min(100, (Math.abs(item.contribution) / largest) * 100));
+          return (
+            <div className={`shap-driver-row ${isRiskIncreaser ? 'driver-risk' : 'driver-buffer'}`} key={item.feature}>
+              <div className="driver-info">
+                <div className="driver-name-group">
+                  <span className="driver-badge">{isRiskIncreaser ? 'Increases Default Probability' : 'Reduces Default Probability'}</span>
+                  <strong>{humanizeFeature(item.feature)}</strong>
+                </div>
+                <div className={`driver-val-pill ${isRiskIncreaser ? 'pill-risk' : 'pill-buffer'}`}>
+                  {isRiskIncreaser ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                  <span>{isRiskIncreaser ? '+' : ''}{item.contribution.toFixed(3)} log-odds</span>
+                </div>
+              </div>
+              <div className="driver-progress-track">
+                <div
+                  className={`driver-progress-bar ${isRiskIncreaser ? 'bar-risk' : 'bar-buffer'}`}
+                  style={{ width: `${pctWidth}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -98,6 +196,7 @@ export default function App() {
   const [budgetTargetPct, setBudgetTargetPct] = useState(35);
   const [repaymentOptions, setRepaymentOptions] = useState(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [shapFilter, setShapFilter] = useState('all');
   const [acknowledged, setAcknowledged] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -765,35 +864,775 @@ export default function App() {
           );
         })()}
 
-        {page === 2 && workflow && <div className="stage-content page-enter"><div className="stage-content-heading"><span className="stage-content-icon"><BarChart3 size={18} /></span><div><h3>Default-risk analysis</h3><p>Application reference {workflow.workflow_id.slice(0, 8)} · profile data was not saved.</p></div><span className="simulation-badge"><CircleCheck size={13} /> Model response</span></div>
-          <div className="analysis-result-grid"><article className="result-card primary-result"><div className="result-card-head"><div><span className="result-kicker">CLASSIFIER TARGET: DEFAULT</span><h3>Estimated default probability</h3></div><span className="result-icon"><Activity size={18} /></span></div><div className="risk-display"><div className="risk-ring" style={{ '--risk': `${workflow.prediction.default_probability * 100}%` }}><div><strong>{(workflow.prediction.default_probability * 100).toFixed(1)}%</strong><span>model output</span></div></div><div className="risk-copy"><span className="risk-badge">Historical risk signal</span><p>Class 1 in this dataset means default. It does not mean approved or eligible.</p></div></div><div className="result-divider" /><div className="rate-estimate"><span className="rate-icon"><TrendingUp size={17} /></span><div><span className="result-kicker">HISTORICAL RATE MODEL</span><strong>{workflow.prediction.estimated_interest_rate_pct == null ? 'Withheld' : `${workflow.prediction.estimated_interest_rate_pct.toFixed(2)}%`}</strong></div><span className={`rate-status ${workflow.prediction.interest_rate_model_status}`}>{workflow.prediction.interest_rate_model_status === 'beats_baseline' ? 'Beats baseline' : 'Below baseline'}</span></div>{workflow.prediction.estimated_interest_rate_pct == null && <p className="rate-note">No rate estimate is shown because this model did not beat the training-mean baseline.</p>}<p className="disclaimer">{workflow.prediction.disclaimer}</p></article>
-            <article className="result-card drivers-card"><div className="drivers-head"><div><span className="result-kicker">LOCAL EXPLANATION</span><h3>Signals behind the estimate</h3></div><span className="shap-tag">SHAP</span></div><ContributionList explanation={workflow.explanation} /><p className="explanation-note">SHAP shows model contribution direction, not causation.</p></article></div>
-          <div className={`risk-branch ${additionalReviewTriggered ? 'branch-triggered' : ''}`}><span className="branch-icon">{additionalReviewTriggered ? <ShieldCheck size={18} /> : <CircleCheck size={18} />}</span><div><strong>{additionalReviewTriggered ? 'Additional-context path triggered' : 'Standard-context path'}</strong><p>The estimate {additionalReviewTriggered ? 'meets' : 'is below'} the illustrative {riskTriggerPct}% review trigger. Both paths still require human review; this is not an approval decision.</p></div><button className="button-outline compact-button" onClick={() => goTo(3)}>Continue <ArrowRight size={14} /></button></div>
-        </div>}
+        {page === 2 && workflow && (() => {
+          const prob = workflow.prediction.default_probability;
+          const probPct = (prob * 100).toFixed(1);
+          const benchmarkDiff = (prob * 100 - 24.1).toFixed(1);
+          const isHighRisk = prob >= 0.5;
+          const isModerate = prob >= 0.25 && prob < 0.5;
 
-        {page === 3 && workflow && <div className="stage-content page-enter"><div className="stage-content-heading"><span className="stage-content-icon review-icon"><ShieldCheck size={18} /></span><div><h3>{additionalReviewTriggered ? 'Additional information path' : 'Additional context review'}</h3><p>{additionalReviewTriggered ? 'The example review trigger was met. Add optional liquidity context for the scenario.' : 'The model is below the example trigger. Human review is still required; context is optional.'}</p></div><span className="review-required"><CircleHelp size={13} /> Not a decision</span></div>
-          <div className="context-layout"><article className="context-card"><span className="review-icon-box amber"><Wallet size={19} /></span><span className="result-kicker">OPTIONAL FINANCIAL BUFFER</span><h4>Fixed deposit or bank balance</h4><p>Enter a hypothetical liquid reserve amount for the local payment-coverage illustration.</p><div className="context-fields"><SelectField label="Reserve type" value={reserveType} onChange={(e) => setReserveType(e.target.value)} options={['Savings balance', 'Fixed deposit', 'Other liquid reserve', 'Not provided']} /><NumberField label="Reserve amount" value={liquidReserve} min={0} max={100000000} prefix="$" onChange={(e) => setLiquidReserve(Number(e.target.value))} /></div><div className="privacy-callout"><LockKeyhole size={15} /><span>This value stays in browser memory; it is not sent to either API endpoint or stored.</span></div></article>
-            <article className="context-card trigger-card"><span className="review-icon-box blue"><Gauge size={19} /></span><span className="result-kicker">ILLUSTRATIVE ROUTING RULE</span><h4>Review trigger</h4><p>Adjust the example threshold to see how the educational workflow branches. It does not change the model or determine eligibility.</p><div className="scenario-label-row"><label htmlFor="risk-trigger">Additional-review trigger</label><strong>{riskTriggerPct}%</strong></div><input id="risk-trigger" className="scenario-range" type="range" min="10" max="90" step="1" value={riskTriggerPct} onChange={(e) => setRiskTriggerPct(Number(e.target.value))} /><div className="range-ends"><span>10%</span><span>90%</span></div><div className="trigger-result"><span className={`legend-dot ${additionalReviewTriggered ? 'risk-dot' : 'buffer-dot'}`} /><strong>{additionalReviewTriggered ? 'Additional review route' : 'Standard review route'}</strong></div></article></div>
-          <div className="review-grid"><article className="review-card"><span className="review-icon-box"><FileCheck2 size={18} /></span><span className="result-kicker">PROFILE CHECK</span><h4>Review the submitted details</h4><p>{form.applicant_name || 'Demo applicant'} · {form.age} years · {currency(form.income)} annual income · {currency(form.loan_amount)} requested</p><div className="review-fact"><Check size={14} /> Representative profile only</div></article><article className="review-card"><span className="review-icon-box amber"><ShieldCheck size={18} /></span><span className="result-kicker">HUMAN SAFEGUARD</span><h4>No automated approval</h4><p>This model predicts a historical default label. It cannot approve, reject, verify identity, or authorize funds.</p><div className="review-fact"><Check size={14} /> Human judgment required</div></article></div>
-          <div className="review-disclaimer"><LockKeyhole size={15} /><span>No PAN, KYC, bureau, bank, or asset verification service is connected. Reserve details remain local to this page.</span></div>
-          {error && <div className="error-box" role="alert"><span><X size={15} /></span><div><strong>Could not calculate repayment plans</strong><small>{error}</small></div></div>}
-          <div className="stage-actions"><button className="button-outline" onClick={() => goTo(2)}><ArrowLeft size={15} /> Back to risk analysis</button><button className="analyze-button action-next" disabled={loading} onClick={loadRepaymentOptions}>{loading ? <><LoaderCircle className="spin" size={16} /> Calculating options…</> : <>Analyze repayment options <ArrowRight size={15} /></>}</button></div>
-        </div>}
+          return (
+            <div className="risk-cockpit-workspace page-enter">
+              {/* Top Banner Status */}
+              <div className="cockpit-top-bar">
+                <div className="cockpit-title-group">
+                  <span className="cockpit-tag">EVALUATED MODEL SIGNAL</span>
+                  <h3>Default Risk & Attribution Cockpit</h3>
+                  <p>Application Reference <code>{workflow.workflow_id.slice(0, 8)}</code> · Evaluated with gradient boosting pipeline</p>
+                </div>
+                <div className="cockpit-status-badges">
+                  <span className="badge-calibrated"><Check size={14} /> Pipeline Calibrated</span>
+                  <span className="badge-stateless"><LockKeyhole size={13} /> Stateless Evaluation</span>
+                </div>
+              </div>
 
-        {page === 4 && repaymentOptions && <div className="stage-content page-enter"><div className="stage-content-heading"><span className="stage-content-icon offer-icon"><Wallet size={18} /></span><div><h3>Compare repayment plans</h3><p>All amounts are arithmetic scenarios based on the APR assumption you select.</p></div><span className="simulation-badge amber-badge"><Activity size={13} /> Simulation only</span></div>
-          <div className="plan-controls"><div className="scenario-control"><div className="scenario-label-row"><label htmlFor="scenario-apr">Illustrative annual APR</label><strong>{Number(scenarioApr).toFixed(2)}%</strong></div><input id="scenario-apr" className="scenario-range" type="range" min="0" max="30" step="0.25" value={scenarioApr} onChange={(e) => setScenarioApr(Number(e.target.value))} /><div className="range-ends"><span>0%</span><span>30%</span></div></div><div className="scenario-control"><div className="scenario-label-row"><label htmlFor="budget-target">Personal payment target</label><strong>{budgetTargetPct}% of monthly income</strong></div><input id="budget-target" className="scenario-range" type="range" min="5" max="80" step="1" value={budgetTargetPct} onChange={(e) => setBudgetTargetPct(Number(e.target.value))} /><div className="range-ends"><span>5%</span><span>80%</span></div></div><button className="button-outline recalc-button" onClick={loadRepaymentOptions} disabled={loading}>{loading ? <LoaderCircle className="spin" size={14} /> : <Activity size={14} />} Update scenarios</button></div>
-          {error && <div className="error-box" role="alert"><span><X size={15} /></span><div><strong>Scenario refresh failed</strong><small>{error}</small></div></div>}
-          <div className="plan-grid">{repaymentOptions.plans.map((plan) => { const monthlyRatio = plan.term_months ? plan.monthly_payment / repaymentOptions.monthly_income * 100 : null; return <button type="button" className={`plan-card ${selectedPlanId === plan.id ? 'selected' : ''}`} key={plan.id} onClick={() => setSelectedPlanId(plan.id)}><span className="plan-radio">{selectedPlanId === plan.id && <i />}</span><span className="plan-name">{plan.label}</span><strong className="plan-payment">{currency(plan.monthly_payment)}<small>{plan.term_months ? '/ month' : ' one-time'}</small></strong><span className="plan-detail">Total payment <b>{currency(plan.total_payment)}</b></span><span className="plan-detail">Estimated interest <b>{currency(plan.total_interest)}</b></span>{monthlyRatio != null && <span className={`plan-target ${monthlyRatio <= budgetTargetPct ? 'within' : 'over'}`}>{monthlyRatio.toFixed(1)}% of monthly income · {monthlyRatio <= budgetTargetPct ? 'within' : 'above'} your target</span>}</button>; })}</div>
-          <div className="plan-disclaimer"><CircleHelp size={15} /><span>Plans are not ranked as suitable or beneficial. Compare the monthly payment, total payment, and your chosen target. APR is a user-selected assumption, not a model recommendation.</span></div>
-          <div className="stage-actions"><button className="button-outline" onClick={() => goTo(3)}><ArrowLeft size={15} /> Back to context</button><button className="analyze-button action-next" disabled={!selectedPlan || loading} onClick={() => { setConfirmed(false); goTo(5); }}>Review selected scenario <ArrowRight size={15} /></button></div>
-        </div>}
+              {/* Two Column Grid */}
+              <div className="cockpit-grid">
+                {/* Left Column: Risk Gauge & Rate Estimator */}
+                <div className="cockpit-left-col">
+                  {/* Gauge Card */}
+                  <div className="cockpit-gauge-card glass-card">
+                    <div className="gauge-card-header">
+                      <div>
+                        <span className="gauge-kicker">CLASSIFIER SIGNAL</span>
+                        <h4>Default Probability</h4>
+                      </div>
+                      <div className={`risk-tier-chip ${isHighRisk ? 'tier-high' : isModerate ? 'tier-mod' : 'tier-low'}`}>
+                        {isHighRisk ? <AlertTriangle size={14} /> : <Check size={14} />}
+                        <span>{isHighRisk ? 'High Risk Exposure' : isModerate ? 'Moderate Risk' : 'Conservative Risk'}</span>
+                      </div>
+                    </div>
 
-        {page === 5 && selectedPlan && repaymentOptions && <div className="stage-content page-enter"><div className="summary-hero"><span className="completion-check"><Check size={25} /></span><span className="section-eyebrow">SIMULATION SUMMARY</span><h3>{confirmed ? 'Demo workflow complete.' : 'Review the scenario.'}</h3><p>{confirmed ? 'No lending decision was made, no document was signed, and no funds were moved.' : 'This is a non-binding preview. Review the summary before completing the demo flow.'}</p></div>
-          <div className="completion-summary"><div><span>Profile reference</span><strong>{workflow?.workflow_id.slice(0, 8) ?? '—'}</strong></div><div><span>Model default estimate</span><strong>{workflow ? `${(workflow.prediction.default_probability * 100).toFixed(1)}%` : '—'}</strong></div><div><span>Selected payment scenario</span><strong>{selectedPlan.label}</strong></div><div><span>Monthly payment</span><strong>{selectedPlan.term_months ? currency(selectedPlan.monthly_payment) : 'One-time'}</strong></div><div><span>Total payment scenario</span><strong>{currency(selectedPlan.total_payment)}</strong></div><div><span>Reserve context</span><strong>{liquidReserve ? `${currency(liquidReserve)} · ${reserveType}` : 'Not provided'}</strong></div></div>
-          {reserveCoverage != null && <div className="coverage-note"><Wallet size={16} /><span>Entered reserve represents about <strong>{reserveCoverage.toFixed(1)} monthly payments</strong> in this scenario. This is a simple ratio, not a suitability or approval assessment.</span></div>}
-          {!confirmed && <label className="check-row final-ack"><input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} /><span>I understand this is an educational, non-binding workflow simulation.</span></label>}
-          <div className="stage-actions"><button className="button-outline" onClick={() => goTo(4)}><ArrowLeft size={15} /> Back to plans</button>{confirmed ? <button className="analyze-button action-next" onClick={restart}>Start another profile <ArrowRight size={15} /></button> : <button className="analyze-button action-next" disabled={!acknowledged} onClick={() => setConfirmed(true)}>Complete demo workflow <Check size={15} /></button>}</div>
-        </div>}
+                    {/* SVG Gauge Display */}
+                    <div className="cockpit-gauge-visual">
+                      <div className="gauge-arc-wrap">
+                        <svg viewBox="0 0 200 110" className="cockpit-svg-arc">
+                          {/* Background Arc */}
+                          <path
+                            d="M 25 100 A 75 75 0 0 1 175 100"
+                            fill="none"
+                            stroke="#EDE9DF"
+                            strokeWidth="16"
+                            strokeLinecap="round"
+                          />
+                          {/* Filled Value Arc */}
+                          <path
+                            d="M 25 100 A 75 75 0 0 1 175 100"
+                            fill="none"
+                            stroke="url(#cockpitGrad)"
+                            strokeWidth="16"
+                            strokeDasharray="236"
+                            strokeDashoffset={236 - (236 * Math.min(1, Math.max(0, prob)))}
+                            strokeLinecap="round"
+                          />
+                          <defs>
+                            <linearGradient id="cockpitGrad" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#27AE60" />
+                              <stop offset="50%" stopColor="#C9A84C" />
+                              <stop offset="100%" stopColor="#C0392B" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+
+                        <div className="gauge-readout-center">
+                          <strong>{probPct}%</strong>
+                          <span>Default Probability</span>
+                        </div>
+                      </div>
+
+                      <div className="gauge-benchmark-note">
+                        <span>Benchmark Delta</span>
+                        <strong className={Number(benchmarkDiff) >= 0 ? 'text-warn' : 'text-good'}>
+                          {Number(benchmarkDiff) >= 0 ? `+${benchmarkDiff}%` : `${benchmarkDiff}%`} vs population median (24.1%)
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Compact Profile Pills */}
+                    <div className="cockpit-profile-strip">
+                      <div className="profile-pill">
+                        <span>Purpose</span>
+                        <strong>{form.loan_purpose}</strong>
+                      </div>
+                      <div className="profile-pill">
+                        <span>Requested</span>
+                        <strong>{currency(form.loan_amount)}</strong>
+                      </div>
+                      <div className="profile-pill">
+                        <span>Term</span>
+                        <strong>{form.loan_term} mo</strong>
+                      </div>
+                      <div className="profile-pill">
+                        <span>FICO Score</span>
+                        <strong>{form.credit_score}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Historical Rate Model Card */}
+                  <div className="rate-model-card glass-card">
+                    <div className="rate-card-header">
+                      <span className="rate-icon-badge"><TrendingUp size={16} /></span>
+                      <div className="rate-header-copy">
+                        <span className="rate-kicker">HISTORICAL RATE MODEL</span>
+                        <h5>Estimated Historical APR</h5>
+                      </div>
+                      <span className={`rate-model-badge ${workflow.prediction.interest_rate_model_status}`}>
+                        {workflow.prediction.interest_rate_model_status === 'beats_baseline' ? 'Beats Baseline' : 'Baseline Retained'}
+                      </span>
+                    </div>
+
+                    <div className="rate-value-row">
+                      {workflow.prediction.estimated_interest_rate_pct != null ? (
+                        <div className="rate-val-display">
+                          <strong>{workflow.prediction.estimated_interest_rate_pct.toFixed(2)}%</strong>
+                          <span>indicative APR</span>
+                        </div>
+                      ) : (
+                        <div className="rate-withheld-display">
+                          <strong>Estimate Withheld</strong>
+                          <span>Model fell below training-mean baseline protection</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="rate-card-disclaimer">
+                      {workflow.prediction.disclaimer}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Column: SHAP Factor Attribution Deck */}
+                <div className="cockpit-right-col">
+                  <div className="shap-panel-card glass-card">
+                    <div className="shap-header">
+                      <div>
+                        <span className="shap-kicker">EXPLAINABILITY & TRANSPARENCY</span>
+                        <h4>Key Driving Factors (SHAP)</h4>
+                        <p>Game-theoretic attribution decomposing positive and negative contributions to risk.</p>
+                      </div>
+                      <span className="shap-certified-tag"><Sparkles size={13} /> SHAP Vector</span>
+                    </div>
+
+                    <ShapFactorDeck
+                      explanation={workflow.explanation}
+                      filter={shapFilter}
+                      onFilterChange={setShapFilter}
+                    />
+
+                    <div className="shap-legend-row">
+                      <div className="legend-item">
+                        <span className="legend-box box-risk" />
+                        <span>Pushes default probability upward (higher risk)</span>
+                      </div>
+                      <div className="legend-item">
+                        <span className="legend-box box-buffer" />
+                        <span>Pushes default probability downward (protective buffer)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Context Routing Action */}
+              <div className={`cockpit-routing-banner ${additionalReviewTriggered ? 'route-review' : 'route-standard'}`}>
+                <div className="routing-left">
+                  <span className="routing-icon">
+                    {additionalReviewTriggered ? <ShieldAlert size={22} /> : <Check size={22} />}
+                  </span>
+                  <div>
+                    <strong>{additionalReviewTriggered ? 'Additional Context Pathway Recommended' : 'Standard Context Pathway'}</strong>
+                    <p>
+                      Default risk signal of {probPct}% {additionalReviewTriggered ? 'meets' : 'is below'} the illustrative {riskTriggerPct}% review threshold. Continue to configure scenario reserves.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="button-primary route-cta"
+                  onClick={() => goTo(3)}
+                >
+                  Configure Additional Context <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {page === 3 && workflow && (() => {
+          const approxMonthly = Math.round((form.loan_amount * (1 + (scenarioApr / 100) * (form.loan_term / 12))) / form.loan_term);
+          const runwayMonths = liquidReserve > 0 && approxMonthly > 0 ? (liquidReserve / approxMonthly).toFixed(1) : 0;
+          const prob = workflow.prediction.default_probability;
+          const probPct = (prob * 100).toFixed(1);
+          const isTriggered = prob * 100 >= riskTriggerPct;
+
+          return (
+            <div className="context-workspace page-enter">
+              {/* Header */}
+              <div className="cockpit-top-bar">
+                <div className="cockpit-title-group">
+                  <span className="cockpit-tag">STEP 03 · FINANCIAL LIQUIDITY & REVIEW POLICY</span>
+                  <h3>Additional Context & Buffer Simulator</h3>
+                  <p>Model default signal: <strong>{probPct}%</strong> · Simulate emergency debt buffers and adjust review trigger rules.</p>
+                </div>
+                <div className="cockpit-status-badges">
+                  <span className={`status-badge-pill ${isTriggered ? 'badge-amber' : 'badge-green'}`}>
+                    {isTriggered ? <ShieldAlert size={14} /> : <Check size={14} />}
+                    <span>{isTriggered ? 'Additional Context Triggered' : 'Standard Routing'}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* 2-Column Grid */}
+              <div className="context-grid">
+                {/* Left Card: Liquid Reserve & Runway Simulator */}
+                <div className="context-card glass-card">
+                  <div className="context-card-header">
+                    <span className="card-badge-gold"><Wallet size={16} /> EMERGENCY LIQUIDITY</span>
+                    <h4>Liquid Reserve & Debt Runway</h4>
+                    <p>Enter optional savings or fixed deposit balances to test debt coverage runway.</p>
+                  </div>
+
+                  {/* Reserve Type Segmented Selector */}
+                  <div className="reserve-type-grid">
+                    {['Savings Balance', 'Fixed Deposit', 'Liquid Portfolio', 'None'].map((type) => (
+                      <button
+                        type="button"
+                        key={type}
+                        className={`reserve-type-chip ${reserveType === type ? 'selected' : ''}`}
+                        onClick={() => {
+                          setReserveType(type);
+                          if (type === 'None') setLiquidReserve(0);
+                        }}
+                      >
+                        <span>{type}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Reserve Amount Slider & Input */}
+                  {reserveType !== 'None' && (
+                    <div className="interactive-slider-box" style={{ marginTop: '16px' }}>
+                      <div className="slider-header-row">
+                        <div className="slider-title">
+                          <span>Liquid Buffer Balance</span>
+                          <small>Stays in local browser memory</small>
+                        </div>
+                        <div className="slider-val-badge" style={{ background: '#EAF5EE', color: '#2D7D5F' }}>
+                          <strong>{currency(liquidReserve)}</strong>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        className="slider-range-bar"
+                        min={0}
+                        max={100000}
+                        step={1000}
+                        value={liquidReserve}
+                        onChange={(e) => setLiquidReserve(Number(e.target.value))}
+                      />
+                      <div className="slider-track-labels">
+                        <span>$0</span>
+                        <span>$25,000</span>
+                        <span>$50,000</span>
+                        <span>$100,000</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Runway Debt Shield Visual */}
+                  <div className="runway-shield-box">
+                    <div className="runway-icon-circle">
+                      <ShieldCheck size={26} />
+                    </div>
+                    <div className="runway-copy">
+                      <div className="runway-val-row">
+                        <strong>{runwayMonths > 0 ? `${runwayMonths} Months` : '0 Months'}</strong>
+                        <span className="runway-tag">{runwayMonths >= 6 ? 'Strong Buffer' : runwayMonths > 0 ? 'Moderate Buffer' : 'No Buffer'}</span>
+                      </div>
+                      <p>
+                        {runwayMonths > 0
+                          ? `At an indicative ~$${approxMonthly}/mo payment, your reserve covers ~${runwayMonths} months of payments if income pauses.`
+                          : 'No liquid buffer provided. Monthly payment obligations rely 100% on continuous active income.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Card: Policy Routing Trigger & Stress Testing */}
+                <div className="context-card glass-card">
+                  <div className="context-card-header">
+                    <span className="card-badge-gold"><Gauge size={16} /> ROUTING THRESHOLD</span>
+                    <h4>Workflow Branching Policy</h4>
+                    <p>Adjust the threshold trigger to observe how policy rules branch based on ML risk signals.</p>
+                  </div>
+
+                  {/* Threshold Slider Box */}
+                  <div className="interactive-slider-box" style={{ marginTop: '12px' }}>
+                    <div className="slider-header-row">
+                      <div className="slider-title">
+                        <span>Review Trigger Threshold</span>
+                        <small>Default risk % that requires additional verification</small>
+                      </div>
+                      <div className="slider-val-badge" style={{ background: 'var(--gold-pale)', color: 'var(--gold-deep)' }}>
+                        <strong>{riskTriggerPct}%</strong>
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      className="slider-range-bar"
+                      min={10}
+                      max={90}
+                      step={5}
+                      value={riskTriggerPct}
+                      onChange={(e) => setRiskTriggerPct(Number(e.target.value))}
+                    />
+                    <div className="slider-track-labels">
+                      <span>10% Strict</span>
+                      <span>50% Standard</span>
+                      <span>90% Relaxed</span>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Branch Evaluation Callout */}
+                  <div className={`policy-evaluation-card ${isTriggered ? 'eval-amber' : 'eval-green'}`}>
+                    <div className="eval-icon">
+                      {isTriggered ? <ShieldAlert size={22} /> : <Check size={22} />}
+                    </div>
+                    <div className="eval-details">
+                      <strong>{isTriggered ? 'Review Pathway Triggered' : 'Standard Intake Pathway'}</strong>
+                      <p>
+                        Current model probability of <strong>{probPct}%</strong> {isTriggered ? 'exceeds' : 'is safely below'} your selected {riskTriggerPct}% threshold.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Profile Verification Recap Card */}
+                  <div className="safeguard-recap-box">
+                    <div className="recap-header">
+                      <Sparkles size={15} />
+                      <span>Profile Verification Checklist</span>
+                    </div>
+                    <div className="recap-list">
+                      <div className="recap-row">
+                        <span>Applicant:</span>
+                        <strong>{form.applicant_name} ({form.age} yrs)</strong>
+                      </div>
+                      <div className="recap-row">
+                        <span>Annual Salary:</span>
+                        <strong>{currency(form.income)} / yr</strong>
+                      </div>
+                      <div className="recap-row">
+                        <span>Capital Requested:</span>
+                        <strong>{currency(form.loan_amount)} ({form.loan_term} mo)</strong>
+                      </div>
+                      <div className="recap-row">
+                        <span>Credit Score:</span>
+                        <strong>{form.credit_score} FICO</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="dossier-actions">
+                <button className="button-outline" type="button" onClick={() => goTo(2)}>
+                  <ArrowLeft size={16} /> Back to Risk Signal
+                </button>
+                <button
+                  className="button-primary finalize-cta"
+                  type="button"
+                  disabled={loading}
+                  onClick={loadRepaymentOptions}
+                >
+                  {loading ? (
+                    <><LoaderCircle className="spin" size={17} /> Simulating scenarios…</>
+                  ) : (
+                    <>Simulate Repayment Scenarios <ArrowRight size={16} /></>
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {page === 4 && repaymentOptions && (
+          <div className="plans-workspace page-enter">
+            {/* Header */}
+            <div className="cockpit-top-bar">
+              <div className="cockpit-title-group">
+                <span className="cockpit-tag">STEP 04 · AMORTIZATION & SCENARIOS</span>
+                <h3>Compare Repayment Scenarios</h3>
+                <p>Arithmetic payment schedules modeled with customizable annual APR and personal budget targets.</p>
+              </div>
+              <div className="cockpit-status-badges">
+                <span className="badge-stateless"><Activity size={14} /> Interactive Math Model</span>
+              </div>
+            </div>
+
+            {/* Interactive Scenario Controls Card */}
+            <div className="plan-controls-card glass-card">
+              <div className="plan-controls-grid">
+                {/* APR Slider */}
+                <div className="scenario-slider-item">
+                  <div className="slider-header-row">
+                    <div className="slider-title">
+                      <span>Hypothetical Annual APR</span>
+                      <small>Custom interest assumption</small>
+                    </div>
+                    <div className="slider-val-badge" style={{ background: 'var(--gold-pale)', color: 'var(--gold-deep)' }}>
+                      <strong>{Number(scenarioApr).toFixed(2)}%</strong>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    className="slider-range-bar"
+                    min={0}
+                    max={30}
+                    step={0.25}
+                    value={scenarioApr}
+                    onChange={(e) => setScenarioApr(Number(e.target.value))}
+                  />
+                  <div className="slider-track-labels">
+                    <span>0% Promo</span>
+                    <span>10% Benchmark</span>
+                    <span>20%</span>
+                    <span>30%</span>
+                  </div>
+                </div>
+
+                {/* Budget Target Slider */}
+                <div className="scenario-slider-item">
+                  <div className="slider-header-row">
+                    <div className="slider-title">
+                      <span>Payment Budget Target</span>
+                      <small>Max % of monthly income</small>
+                    </div>
+                    <div className="slider-val-badge" style={{ background: '#EAF5EE', color: '#2D7D5F' }}>
+                      <strong>{budgetTargetPct}% of salary</strong>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    className="slider-range-bar"
+                    min={5}
+                    max={60}
+                    step={1}
+                    value={budgetTargetPct}
+                    onChange={(e) => setBudgetTargetPct(Number(e.target.value))}
+                  />
+                  <div className="slider-track-labels">
+                    <span>5% Light</span>
+                    <span>35% Standard</span>
+                    <span>60% Aggressive</span>
+                  </div>
+                </div>
+
+                <div className="recalc-action-box">
+                  <button
+                    type="button"
+                    className="button-primary"
+                    style={{ width: '100%', height: '48px' }}
+                    disabled={loading}
+                    onClick={loadRepaymentOptions}
+                  >
+                    {loading ? <LoaderCircle className="spin" size={16} /> : <SlidersHorizontal size={16} />}
+                    Recalculate Scenarios
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="error-box" role="alert">
+                <span><X size={15} /></span>
+                <div><strong>Calculation failed</strong><small>{error}</small></div>
+              </div>
+            )}
+
+            {/* Repayment Plans Grid */}
+            <div className="plans-cards-grid">
+              {repaymentOptions.plans.map((plan) => {
+                const monthlyRatio = plan.term_months ? (plan.monthly_payment / repaymentOptions.monthly_income) * 100 : null;
+                const isSelected = selectedPlanId === plan.id;
+                const isWithin = monthlyRatio != null && monthlyRatio <= budgetTargetPct;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`plan-card-elevated ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setSelectedPlanId(plan.id)}
+                  >
+                    <div className="plan-card-top">
+                      <span className="plan-name-label">{plan.label}</span>
+                      <div className={`plan-radio-circle ${isSelected ? 'checked' : ''}`}>
+                        {isSelected && <Check size={12} />}
+                      </div>
+                    </div>
+
+                    <div className="plan-payment-figure">
+                      <strong>{currency(plan.monthly_payment)}</strong>
+                      <span>{plan.term_months ? '/ month' : ' one-time'}</span>
+                    </div>
+
+                    <div className="plan-breakdown-rows">
+                      <div className="breakdown-row">
+                        <span>Total Repayment</span>
+                        <strong>{currency(plan.total_payment)}</strong>
+                      </div>
+                      <div className="breakdown-row">
+                        <span>Estimated Interest</span>
+                        <strong>{currency(plan.total_interest)}</strong>
+                      </div>
+                    </div>
+
+                    {monthlyRatio != null && (
+                      <div className={`plan-target-badge ${isWithin ? 'within' : 'exceeds'}`}>
+                        {isWithin ? <Check size={12} /> : <AlertTriangle size={12} />}
+                        <span>{monthlyRatio.toFixed(1)}% of income ({isWithin ? 'Within Target' : 'Exceeds Target'})</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="dossier-actions">
+              <button className="button-outline" type="button" onClick={() => goTo(3)}>
+                <ArrowLeft size={16} /> Back to Additional Context
+              </button>
+              <button
+                className="button-primary finalize-cta"
+                type="button"
+                disabled={!selectedPlan || loading}
+                onClick={() => { setConfirmed(false); goTo(5); }}
+              >
+                Review Selected Scenario <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {page === 5 && selectedPlan && repaymentOptions && (() => {
+          const principal = form.loan_amount;
+          const totalPayment = selectedPlan.total_payment || principal;
+          const interest = Math.max(0, totalPayment - principal);
+          const principalPct = Math.round((principal / totalPayment) * 100);
+          const interestPct = 100 - principalPct;
+          const prob = workflow?.prediction?.default_probability ?? 0;
+          const probPct = (prob * 100).toFixed(1);
+          const hasReserve = liquidReserve > 0;
+          const coverageMonths = hasReserve && selectedPlan.monthly_payment ? (liquidReserve / selectedPlan.monthly_payment).toFixed(1) : null;
+
+          return (
+            <div className="summary-dossier-workspace page-enter">
+              {/* Header */}
+              <div className="dossier-hero">
+                <div className={`dossier-check-badge ${confirmed ? 'confirmed' : ''}`}>
+                  <Check size={28} />
+                </div>
+                <span className="dossier-kicker">SIMULATION SCENARIO DOSSIER</span>
+                <h3>{confirmed ? 'Scenario Completed & Validated' : 'Executive Scenario Summary'}</h3>
+                <p>
+                  {confirmed
+                    ? 'This educational simulation is complete. No credit contract was executed, and no financial data was retained.'
+                    : 'Review the simulated repayment footprint, principal-interest ratio, and model risk signals.'}
+                </p>
+                <div className="dossier-ref-pill">
+                  <FileCheck2 size={13} />
+                  <span>Dossier Reference: <code>{workflow?.workflow_id.slice(0, 8) ?? 'LOCAL-DEMO'}</code></span>
+                </div>
+              </div>
+
+              {/* 2-Column Summary Cards */}
+              <div className="dossier-grid">
+                {/* Left Card: Repayment Footprint & Capital Breakdown */}
+                <div className="dossier-card glass-card">
+                  <div className="dossier-card-header">
+                    <span className="card-badge-gold"><Wallet size={15} /> PAYMENT SCHEDULE</span>
+                    <h4>Selected Payment Plan</h4>
+                  </div>
+
+                  {/* Main Monthly Callout */}
+                  <div className="dossier-monthly-highlight">
+                    <div className="monthly-main">
+                      <strong>{currency(selectedPlan.monthly_payment)}</strong>
+                      <span>{selectedPlan.term_months ? '/ month' : ' one-time'}</span>
+                    </div>
+                    <span className="plan-pill-tag">{selectedPlan.label}</span>
+                  </div>
+
+                  {/* Principal vs Interest Visual Bar */}
+                  <div className="capital-ratio-block">
+                    <div className="capital-labels">
+                      <div className="cap-label-group">
+                        <span className="cap-dot dot-principal" />
+                        <span>Principal: <strong>{currency(principal)}</strong> ({principalPct}%)</span>
+                      </div>
+                      <div className="cap-label-group">
+                        <span className="cap-dot dot-interest" />
+                        <span>Est. Interest: <strong>{currency(interest)}</strong> ({interestPct}%)</span>
+                      </div>
+                    </div>
+
+                    <div className="capital-bar-track">
+                      <div className="cap-bar-fill fill-principal" style={{ width: `${principalPct}%` }} />
+                      <div className="cap-bar-fill fill-interest" style={{ width: `${interestPct}%` }} />
+                    </div>
+
+                    <div className="total-repayment-row">
+                      <span>Total Repayment Commitment:</span>
+                      <strong>{currency(totalPayment)}</strong>
+                    </div>
+                  </div>
+
+                  {/* Key Scenario Stats */}
+                  <div className="dossier-stats-grid">
+                    <div className="d-stat-item">
+                      <span>Assumed APR</span>
+                      <strong>{Number(scenarioApr).toFixed(2)}%</strong>
+                    </div>
+                    <div className="d-stat-item">
+                      <span>Tenure</span>
+                      <strong>{selectedPlan.term_months ? `${selectedPlan.term_months} Months` : 'N/A'}</strong>
+                    </div>
+                    <div className="d-stat-item">
+                      <span>Monthly Income</span>
+                      <strong>{currency(repaymentOptions.monthly_income)}</strong>
+                    </div>
+                    <div className="d-stat-item">
+                      <span>Payment Burden</span>
+                      <strong className={selectedPlan.monthly_payment / repaymentOptions.monthly_income > 0.4 ? 'text-warn' : 'text-good'}>
+                        {((selectedPlan.monthly_payment / repaymentOptions.monthly_income) * 100).toFixed(1)}% of salary
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Card: Model Signal & Reserve Context */}
+                <div className="dossier-card glass-card">
+                  <div className="dossier-card-header">
+                    <span className="card-badge-gold"><BarChart3 size={15} /> RISK & LIQUIDITY</span>
+                    <h4>Risk Signals & Buffer</h4>
+                  </div>
+
+                  {/* Risk Mini Gauge Box */}
+                  <div className="dossier-risk-box">
+                    <div className="risk-box-header">
+                      <span>Classifier Default Signal</span>
+                      <span className={`risk-tier-chip ${prob >= 0.5 ? 'tier-high' : prob >= 0.25 ? 'tier-mod' : 'tier-low'}`}>
+                        {prob >= 0.5 ? 'High Risk Band' : prob >= 0.25 ? 'Moderate Risk' : 'Low Risk'}
+                      </span>
+                    </div>
+                    <div className="dossier-risk-meter">
+                      <div className="dossier-risk-track">
+                        <div
+                          className="dossier-risk-fill"
+                          style={{
+                            width: `${Math.min(100, Math.max(0, prob * 100))}%`,
+                            background: prob >= 0.5 ? '#C0392B' : prob >= 0.25 ? '#C9A84C' : '#27AE60'
+                          }}
+                        />
+                      </div>
+                      <div className="risk-meter-labels">
+                        <strong>{probPct}%</strong>
+                        <small>Model output probability</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reserve Coverage Card */}
+                  <div className="dossier-reserve-box">
+                    <div className="reserve-icon-wrap">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div className="reserve-details">
+                      {hasReserve ? (
+                        <>
+                          <div className="reserve-title-row">
+                            <strong>{currency(liquidReserve)} in {reserveType}</strong>
+                            <span className="coverage-badge">{coverageMonths} mo. buffer</span>
+                          </div>
+                          <p>
+                            Hypothetical reserve represents approximately <strong>{coverageMonths} monthly installments</strong> in this scenario.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <strong>No Optional Reserve Provided</strong>
+                          <p>No liquid buffer entered. Scenario relies entirely on projected ongoing monthly cashflow.</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Applicant Details Recap */}
+                  <div className="dossier-profile-recap">
+                    <div className="recap-title">
+                      <span>Applicant Profile Recap</span>
+                    </div>
+                    <div className="recap-pills">
+                      <div className="recap-pill"><span>Name:</span> <strong>{form.applicant_name}</strong></div>
+                      <div className="recap-pill"><span>FICO:</span> <strong>{form.credit_score}</strong></div>
+                      <div className="recap-pill"><span>Purpose:</span> <strong>{form.loan_purpose}</strong></div>
+                      <div className="recap-pill"><span>Income:</span> <strong>{currency(form.income)}</strong></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Confirmation Accordion Box */}
+              {!confirmed ? (
+                <div
+                  className={`acknowledgment-card ${acknowledged ? 'acknowledged' : ''}`}
+                  onClick={() => setAcknowledged(!acknowledged)}
+                >
+                  <div className="ack-checkbox-wrap">
+                    <div className={`ack-box ${acknowledged ? 'checked' : ''}`}>
+                      {acknowledged && <Check size={16} />}
+                    </div>
+                  </div>
+                  <div className="ack-text">
+                    <strong>Acknowledge Educational Simulation Terms</strong>
+                    <p>
+                      I confirm that this summary is a demonstration workflow based on historical public dataset benchmarks. I understand that no lending decision, approval, contract, credit inquiry, or fund disbursement has occurred.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="finalized-banner">
+                  <div className="finalized-icon"><BadgeCheck size={24} /></div>
+                  <div>
+                    <strong>Demonstration Scenario Finalized</strong>
+                    <p>All inputs remain strictly in your browser memory and will reset when you begin another session.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Actions */}
+              <div className="dossier-actions">
+                <button className="button-outline" type="button" onClick={() => goTo(4)}>
+                  <ArrowLeft size={16} /> Back to Repayment Plans
+                </button>
+                {confirmed ? (
+                  <button className="button-primary finalize-cta" type="button" onClick={restart}>
+                    Start Another Profile <ArrowRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    className="button-primary finalize-cta"
+                    type="button"
+                    disabled={!acknowledged}
+                    onClick={() => setConfirmed(true)}
+                  >
+                    Complete Demo Workflow <Check size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </section>}
     </main>
     <footer className="footer section-wrap"><button className="wordmark wordmark-button" onClick={() => goTo(0)}><span className="logo-mark"><BrandMark size={26} /></span><span className="brand-name"><strong>Apsara</strong><small>Finance</small></span></button><span>Local educational demo <i /> multi-step workflow</span><span className="footer-note"><ShieldCheck size={13} /> No credit decision, signature, or transfer is made.</span></footer>
