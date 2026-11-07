@@ -57,37 +57,57 @@ function downloadPersonInsight(record) {
     { text: 'APSARA FINANCE | INDIVIDUAL MODEL INSIGHT', size: 17, color: '1 1 1', gap: 23, header: true },
     { text: `Applicant: ${record.applicant_name || 'Applicant'}     Reference: ${record.workflow.workflow_id.slice(0, 8)}`, size: 11, color: '1 1 1' },
     { text: `Assessment date: ${new Date(record.created_at).toLocaleString()}`, size: 9, color: '0.82 0.86 0.90' },
-    { text: 'RISK AND REPAYMENT SUMMARY', size: 12, color: '0.55 0.42 0.14', gap: 8 },
-    { text: `Estimated historical default probability: ${(prediction.default_probability * 100).toFixed(1)}%`, size: 11 },
-    { text: `Estimated historical interest rate: ${prediction.estimated_interest_rate_pct != null ? `${prediction.estimated_interest_rate_pct.toFixed(2)}%` : 'Unavailable'}`, size: 11 },
-    { text: `Requested loan: ${currency(record.profile.loan_amount)} over ${record.profile.loan_term} months`, size: 11 },
-    { text: `Annual gross salary: ${currency(record.profile.income)} | Monthly gross salary: ${currency(monthlyIncome)}`, size: 11 },
-    { text: `Indicative monthly payment: ${plan ? currency(plan.monthly_payment) : 'Unavailable'} | Payment-to-salary ratio: ${ratio}`, size: 11 },
-    { text: `Bank balance: ${record.bank_balance_type || 'Not provided'} - ${currency(record.bank_balance_amount)}`, size: 11 },
-    { text: 'VISUAL COMPARISON', size: 12, color: '0.55 0.42 0.14', gap: 8 },
-    { type: 'bar', text: 'Default risk', value: riskPct, max: 100, color: riskPct >= 50 ? '0.78 0.25 0.23' : riskPct >= 25 ? '0.82 0.56 0.16' : '0.13 0.57 0.43', suffix: `${riskPct.toFixed(1)}%`, gap: 28 },
-    { type: 'bar', text: 'Payment / salary', value: ratioPct ?? 0, max: 50, color: ratioPct > 35 ? '0.78 0.25 0.23' : '0.13 0.57 0.43', threshold: 35, suffix: ratio, gap: 28 },
-    { type: 'bar', text: 'Bank balance', value: record.bank_balance_amount || 0, max: comparisonMax, color: '0.12 0.55 0.69', suffix: currency(record.bank_balance_amount), gap: 28 },
-    { type: 'bar', text: 'Requested loan', value: record.profile.loan_amount || 0, max: comparisonMax, color: '0.47 0.38 0.72', suffix: currency(record.profile.loan_amount), gap: 28 },
+    { text: 'RISK AND REPAYMENT SUMMARY', size: 12, color: '1 1 1', section: true, sectionColor: '0.30 0.17 0.28', gap: 30 },
+    { text: `Estimated historical default probability: ${(prediction.default_probability * 100).toFixed(1)}%`, size: 11, panelColor: '0.99 0.96 0.97', accentColor: '0.67 0.36 0.45' },
+    { text: `Estimated historical interest rate: ${prediction.estimated_interest_rate_pct != null ? `${prediction.estimated_interest_rate_pct.toFixed(2)}%` : 'Unavailable'}`, size: 11, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
+    { text: `Requested loan: ${currency(record.profile.loan_amount)} over ${record.profile.loan_term} months`, size: 11, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
+    { text: `Annual gross salary: ${currency(record.profile.income)} | Monthly gross salary: ${currency(monthlyIncome)}`, size: 11, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
+    { text: `Indicative monthly payment: ${plan ? currency(plan.monthly_payment) : 'Unavailable'} | Payment-to-salary ratio: ${ratio}`, size: 11, panelColor: '0.99 0.96 0.94', accentColor: '0.78 0.44 0.42' },
+    { text: `Bank balance: ${record.bank_balance_type || 'Not provided'} - ${currency(record.bank_balance_amount)}`, size: 11, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
+    { text: 'VISUAL COMPARISON', size: 12, color: '1 1 1', section: true, sectionColor: '0.30 0.17 0.28', gap: 30 },
+    { type: 'bar', text: 'Default risk', value: riskPct, max: 100, color: riskPct >= 50 ? '0.68 0.34 0.40' : riskPct >= 25 ? '0.77 0.49 0.43' : '0.60 0.39 0.53', suffix: `${riskPct.toFixed(1)}%`, gap: 28 },
+    { type: 'bar', text: 'Payment / salary', value: ratioPct ?? 0, max: 50, color: ratioPct > 35 ? '0.68 0.34 0.40' : '0.77 0.49 0.43', threshold: 35, suffix: ratio, gap: 28 },
+    { type: 'bar', text: 'Bank balance', value: record.bank_balance_amount || 0, max: comparisonMax, color: '0.60 0.39 0.53', suffix: currency(record.bank_balance_amount), gap: 28 },
+    { type: 'bar', text: 'Requested loan', value: record.profile.loan_amount || 0, max: comparisonMax, color: '0.40 0.27 0.38', suffix: currency(record.profile.loan_amount), gap: 28 },
     { text: 'Risk scale: 0-100%. Payment ratio scale: 0-50%; marker indicates a 35% reference target.', size: 8, color: '0.38 0.42 0.47', gap: 15 },
     { text: 'Bank balance and requested loan use the same dollar scale for direct comparison.', size: 8, color: '0.38 0.42 0.47', gap: 15 },
-    { text: 'APPLICANT PROFILE', size: 12, color: '0.55 0.42 0.14', gap: 8 },
-    { text: `Age: ${record.profile.age} | Credit score: ${record.profile.credit_score} | DTI: ${(record.profile.dti_ratio * 100).toFixed(0)}%`, size: 10 },
-    { text: `Employment: ${record.profile.employment_type} | Purpose: ${record.profile.loan_purpose} | Education: ${record.profile.education}`, size: 10 },
-    { text: 'TOP MODEL INSIGHTS', size: 12, color: '0.55 0.42 0.14', gap: 8 },
-    ...drivers.map((item, index) => ({ text: `${index + 1}. ${humanizeFeature(item.feature)} - ${item.contribution >= 0 ? '+' : ''}${item.contribution.toFixed(3)} log-odds (${item.contribution >= 0 ? 'increases' : 'reduces'} estimated default risk)`, size: 10 })),
-    { text: 'INTERPRETATION', size: 12, color: '0.55 0.42 0.14', gap: 8 },
-    { text: `Top listed feature ${drivers[0] ? (drivers[0].contribution >= 0 ? 'increases' : 'reduces') : 'contributes to'} the model estimate for this profile.`, size: 10 },
-    { text: 'This educational estimate reflects historical dataset patterns. It is not an approval decision,', size: 9, color: '0.38 0.42 0.47', gap: 8 },
-    { text: 'credit decision, financial recommendation, or prediction of an individual outcome.', size: 9, color: '0.38 0.42 0.47' },
-    { text: 'Bank balance is shown as cash-buffer context and is not used by the default-risk model.', size: 9, color: '0.38 0.42 0.47' },
+    { text: 'APPLICANT PROFILE', size: 12, color: '1 1 1', section: true, sectionColor: '0.30 0.17 0.28', gap: 27 },
+    { text: `Age: ${record.profile.age} | Credit score: ${record.profile.credit_score} | DTI: ${(record.profile.dti_ratio * 100).toFixed(0)}%`, size: 10, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
+    { text: `Employment: ${record.profile.employment_type} | Purpose: ${record.profile.loan_purpose} | Education: ${record.profile.education}`, size: 10, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
+    { text: 'TOP MODEL INSIGHTS', size: 12, color: '1 1 1', section: true, sectionColor: '0.30 0.17 0.28', gap: 27 },
+    ...drivers.map((item, index) => ({ text: `${index + 1}. ${humanizeFeature(item.feature)}: ${item.contribution >= 0 ? '+' : ''}${item.contribution.toFixed(3)} log-odds (${item.contribution >= 0 ? 'raises' : 'lowers'} risk)`, size: 10, panelColor: index % 2 ? '0.99 0.96 0.97' : '0.97 0.93 0.95', accentColor: '0.67 0.36 0.45' })),
+    { text: 'INTERPRETATION', size: 12, color: '1 1 1', section: true, sectionColor: '0.30 0.17 0.28', gap: 27 },
+    { text: `Top listed feature ${drivers[0] ? (drivers[0].contribution >= 0 ? 'increases' : 'reduces') : 'contributes to'} the model estimate for this profile.`, size: 10, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
+    { text: 'This educational estimate reflects historical dataset patterns. It is not an approval decision,', size: 9, color: '0.38 0.32 0.36', panelColor: '0.99 0.97 0.95', accentColor: '0.78 0.44 0.42', gap: 8 },
+    { text: 'credit decision, financial recommendation, or prediction of an individual outcome.', size: 9, color: '0.38 0.32 0.36', panelColor: '0.99 0.97 0.95', accentColor: '0.78 0.44 0.42' },
+    { text: 'Bank balance is shown as cash-buffer context and is not used by the default-risk model.', size: 9, color: '0.38 0.32 0.36', panelColor: '0.99 0.97 0.95', accentColor: '0.78 0.44 0.42' },
   ];
+  const wrapText = (text, size) => {
+    const maxChars = Math.max(24, Math.floor(500 / (size * 0.55)));
+    const words = ascii(text).split(/\s+/);
+    const wrapped = []; let current = '';
+    for (const word of words) {
+      if (!word) continue;
+      if (current && `${current} ${word}`.length > maxChars) { wrapped.push(current); current = word; }
+      else current = current ? `${current} ${word}` : word;
+    }
+    if (current) wrapped.push(current);
+    return wrapped.length ? wrapped : [''];
+  };
+  const printableLines = lines.flatMap((line) => {
+    if (line.type === 'bar') return [line];
+    return wrapText(line.text, line.size).map((text, index) => ({
+      ...line, text,
+      gap: index === 0 ? line.gap : Math.max(19, line.size + 7),
+    }));
+  });
   let y = 773;
-  const commands = ['0.97 0.97 0.95 rg 0 0 612 792 re f', '0.08 0.17 0.28 rg 0 712 612 80 re f', '0.82 0.66 0.31 rg 0 707 612 5 re f'];
-  for (const line of lines) {
-    y -= line.gap ?? (line.type === 'bar' ? 27 : 19);
+  const commands = ['0.97 0.94 0.96 rg 0 0 612 792 re f', '1 1 1 rg 30 30 552 732 re f', '0.24 0.13 0.22 rg 32 712 548 80 re f', '0.78 0.43 0.48 rg 32 707 548 5 re f'];
+  for (const line of printableLines) {
+    y -= line.gap ?? (line.type === 'bar' ? 28 : 22);
     if (line.type === 'bar') {
       const x = 198; const width = 260; const height = 9; const barY = y - 3; const fraction = Math.max(0, Math.min(1, line.value / line.max));
+        commands.push(`0.96 0.97 0.97 rg 47 ${barY - 6} 518 21 re f`);
       commands.push(`0.18 0.22 0.28 rg BT /F1 9 Tf 52 ${y} Td (${escape(line.text)}) Tj ET`);
       commands.push(`0.88 0.89 0.88 rg ${x} ${barY} ${width} ${height} re f`);
       for (const mark of [0.25, 0.5, 0.75]) commands.push(`0.72 0.74 0.74 RG 0.5 w ${x + width * mark} ${barY - 2} m ${x + width * mark} ${barY + height + 2} l S`);
@@ -95,10 +115,17 @@ function downloadPersonInsight(record) {
       if (line.threshold != null) commands.push(`0.12 0.16 0.22 RG 1 w ${x + width * line.threshold / line.max} ${barY - 4} m ${x + width * line.threshold / line.max} ${barY + height + 4} l S`);
       commands.push(`0.16 0.20 0.26 rg BT /F1 9 Tf 470 ${y} Td (${escape(line.suffix)}) Tj ET`);
     } else {
+      if (line.section) {
+        commands.push(`${line.sectionColor} rg 47 ${y - 7} 518 20 re f`);
+        commands.push(`0.78 0.43 0.48 rg 47 ${y - 7} 4 20 re f`);
+      } else if (line.panelColor) {
+        commands.push(`${line.panelColor} rg 47 ${y - 5} 518 16 re f`);
+        commands.push(`${line.accentColor || '0.78 0.43 0.48'} rg 47 ${y - 5} 3 16 re f`);
+      }
       commands.push(`${line.color || '0.16 0.20 0.26'} rg BT /F1 ${line.size} Tf 52 ${y} Td (${escape(line.text)}) Tj ET`);
     }
   }
-  commands.push('0.78 0.80 0.80 RG 0.7 w 48 38 m 564 38 l S', '0.38 0.42 0.47 rg BT /F1 8 Tf 52 24 Td (Educational model output | Historical patterns only - not a credit decision.) Tj ET');
+  commands.push('0.84 0.78 0.81 RG 0.7 w 48 38 m 564 38 l S', '0.38 0.32 0.36 rg BT /F1 8 Tf 52 24 Td (Educational model output | Historical patterns only - not a credit decision.) Tj ET', '0.78 0.43 0.48 RG 2 w 20 20 572 752 re S', '0.24 0.13 0.22 RG 0.5 w 27 27 558 738 re S');
   const stream = commands.join('\n');
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
@@ -1439,23 +1466,18 @@ export default function App() {
                     </div>
 
                     <div className="plan-payment-figure">
-                      <strong>{currency(plan.monthly_payment)}</strong>
-                      <span>{plan.term_months ? '/ month' : ' one-time'}</span>
+                      {plan.term_months ? <><strong>{currency(plan.monthly_payment)}</strong><span>/ month</span></> : <><strong>{Number(scenarioApr).toFixed(2)}%</strong><span>annual interest rate</span></>}
                     </div>
 
                     <div className="plan-breakdown-rows">
-                      <div className="breakdown-row">
-                        <span>Total Repayment</span>
-                        <strong>{currency(plan.total_payment)}</strong>
-                      </div>
-                      <div className="breakdown-row">
-                        <span>Estimated Interest</span>
-                        <strong>{currency(plan.total_interest)}</strong>
-                      </div>
-                      <div className="breakdown-row">
-                        <span>Gross Monthly Salary</span>
-                        <strong>{currency(repaymentOptions.monthly_income)}</strong>
-                      </div>
+                      {plan.term_months ? <>
+                        <div className="breakdown-row"><span>Total Repayment</span><strong>{currency(plan.total_payment)}</strong></div>
+                        <div className="breakdown-row"><span>Estimated Interest</span><strong>{currency(plan.total_interest)}</strong></div>
+                        <div className="breakdown-row"><span>Gross Monthly Salary</span><strong>{currency(repaymentOptions.monthly_income)}</strong></div>
+                      </> : <>
+                        <div className="breakdown-row"><span>Interest Rate per Year</span><strong>{Number(scenarioApr).toFixed(2)}%</strong></div>
+                        <div className="breakdown-row"><span>Interest Amount</span><strong>{currency(plan.total_interest)}</strong></div>
+                      </>}
                     </div>
 
                     {monthlyRatio != null && (
@@ -1529,14 +1551,13 @@ export default function App() {
                   {/* Main Monthly Callout */}
                   <div className="dossier-monthly-highlight">
                     <div className="monthly-main">
-                      <strong>{currency(selectedPlan.monthly_payment)}</strong>
-                      <span>{selectedPlan.term_months ? '/ month' : ' one-time'}</span>
+                      {selectedPlan.term_months ? <><strong>{currency(selectedPlan.monthly_payment)}</strong><span>/ month</span></> : <><strong>{Number(scenarioApr).toFixed(2)}%</strong><span>interest rate per year</span></>}
                     </div>
                     <span className="plan-pill-tag">{selectedPlan.label}</span>
                   </div>
 
                   {/* Principal vs Interest Visual Bar */}
-                  <div className="capital-ratio-block">
+                  {selectedPlan.term_months ? <div className="capital-ratio-block">
                     <div className="capital-labels">
                       <div className="cap-label-group">
                         <span className="cap-dot dot-principal" />
@@ -1557,7 +1578,11 @@ export default function App() {
                       <span>Total Repayment Commitment:</span>
                       <strong>{currency(totalPayment)}</strong>
                     </div>
-                  </div>
+                  </div> : <div className="capital-ratio-block one-time-interest-summary">
+                    <div className="total-repayment-row"><span>Interest Rate per Year:</span><strong>{Number(scenarioApr).toFixed(2)}%</strong></div>
+                    <div className="total-repayment-row"><span>Interest Amount:</span><strong>{currency(interest)}</strong></div>
+                    <p>One-time payment assumes immediate payoff, so no interest accrues.</p>
+                  </div>}
 
                   {/* Key Scenario Stats */}
                   <div className="dossier-stats-grid">
