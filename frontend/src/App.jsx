@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight,
   BadgeCheck, BarChart3, BriefcaseBusiness, Building2, Car, Check, ChevronDown,
-  CircleCheck, CircleHelp, ClipboardCheck, FileCheck2, FileSearch, Gauge,
+  CircleCheck, CircleHelp, ClipboardCheck, Download, FileCheck2, FileSearch, Gauge,
   GraduationCap, Home, Landmark, LoaderCircle, LockKeyhole, Menu, PenLine,
   Percent, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, TrendingDown,
   TrendingUp, User, Users, Wallet, X,
@@ -40,6 +40,83 @@ const monthlyInstallment = (principal, annualRatePct, termMonths) => {
 };
 const routeIndex = (path) => Math.max(0, routePaths.indexOf(path));
 const currency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
+const HISTORY_KEY = 'apsara-assessment-history';
+const readHistory = () => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; } };
+function downloadPersonInsight(record) {
+  const prediction = record.workflow.prediction;
+  const plan = record.repayment_options?.plans?.find((item) => item.id === `emi-${record.profile.loan_term}`);
+  const monthlyIncome = record.repayment_options?.monthly_income ?? record.profile.income / 12;
+  const ratioPct = plan && monthlyIncome ? (plan.monthly_payment / monthlyIncome) * 100 : null;
+  const ratio = ratioPct == null ? 'Unavailable' : `${ratioPct.toFixed(1)}%`;
+  const riskPct = prediction.default_probability * 100;
+  const comparisonMax = Math.max(record.bank_balance_amount || 0, record.profile.loan_amount || 0, 1);
+  const drivers = (record.workflow.explanation?.default_log_odds_contributions || []).slice().sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)).slice(0, 5);
+  const ascii = (value) => String(value ?? '').normalize('NFKD').replace(/[^\x20-\x7E]/g, '?');
+  const escape = (value) => ascii(value).replaceAll('\\', '\\\\').replaceAll('(', '\\(').replaceAll(')', '\\)');
+  const lines = [
+    { text: 'APSARA FINANCE | INDIVIDUAL MODEL INSIGHT', size: 17, color: '1 1 1', gap: 23, header: true },
+    { text: `Applicant: ${record.applicant_name || 'Applicant'}     Reference: ${record.workflow.workflow_id.slice(0, 8)}`, size: 11, color: '1 1 1' },
+    { text: `Assessment date: ${new Date(record.created_at).toLocaleString()}`, size: 9, color: '0.82 0.86 0.90' },
+    { text: 'RISK AND REPAYMENT SUMMARY', size: 12, color: '0.55 0.42 0.14', gap: 8 },
+    { text: `Estimated historical default probability: ${(prediction.default_probability * 100).toFixed(1)}%`, size: 11 },
+    { text: `Estimated historical interest rate: ${prediction.estimated_interest_rate_pct != null ? `${prediction.estimated_interest_rate_pct.toFixed(2)}%` : 'Unavailable'}`, size: 11 },
+    { text: `Requested loan: ${currency(record.profile.loan_amount)} over ${record.profile.loan_term} months`, size: 11 },
+    { text: `Annual gross salary: ${currency(record.profile.income)} | Monthly gross salary: ${currency(monthlyIncome)}`, size: 11 },
+    { text: `Indicative monthly payment: ${plan ? currency(plan.monthly_payment) : 'Unavailable'} | Payment-to-salary ratio: ${ratio}`, size: 11 },
+    { text: `Bank balance: ${record.bank_balance_type || 'Not provided'} - ${currency(record.bank_balance_amount)}`, size: 11 },
+    { text: 'VISUAL COMPARISON', size: 12, color: '0.55 0.42 0.14', gap: 8 },
+    { type: 'bar', text: 'Default risk', value: riskPct, max: 100, color: riskPct >= 50 ? '0.78 0.25 0.23' : riskPct >= 25 ? '0.82 0.56 0.16' : '0.13 0.57 0.43', suffix: `${riskPct.toFixed(1)}%`, gap: 28 },
+    { type: 'bar', text: 'Payment / salary', value: ratioPct ?? 0, max: 50, color: ratioPct > 35 ? '0.78 0.25 0.23' : '0.13 0.57 0.43', threshold: 35, suffix: ratio, gap: 28 },
+    { type: 'bar', text: 'Bank balance', value: record.bank_balance_amount || 0, max: comparisonMax, color: '0.12 0.55 0.69', suffix: currency(record.bank_balance_amount), gap: 28 },
+    { type: 'bar', text: 'Requested loan', value: record.profile.loan_amount || 0, max: comparisonMax, color: '0.47 0.38 0.72', suffix: currency(record.profile.loan_amount), gap: 28 },
+    { text: 'Risk scale: 0-100%. Payment ratio scale: 0-50%; marker indicates a 35% reference target.', size: 8, color: '0.38 0.42 0.47', gap: 15 },
+    { text: 'Bank balance and requested loan use the same dollar scale for direct comparison.', size: 8, color: '0.38 0.42 0.47', gap: 15 },
+    { text: 'APPLICANT PROFILE', size: 12, color: '0.55 0.42 0.14', gap: 8 },
+    { text: `Age: ${record.profile.age} | Credit score: ${record.profile.credit_score} | DTI: ${(record.profile.dti_ratio * 100).toFixed(0)}%`, size: 10 },
+    { text: `Employment: ${record.profile.employment_type} | Purpose: ${record.profile.loan_purpose} | Education: ${record.profile.education}`, size: 10 },
+    { text: 'TOP MODEL INSIGHTS', size: 12, color: '0.55 0.42 0.14', gap: 8 },
+    ...drivers.map((item, index) => ({ text: `${index + 1}. ${humanizeFeature(item.feature)} - ${item.contribution >= 0 ? '+' : ''}${item.contribution.toFixed(3)} log-odds (${item.contribution >= 0 ? 'increases' : 'reduces'} estimated default risk)`, size: 10 })),
+    { text: 'INTERPRETATION', size: 12, color: '0.55 0.42 0.14', gap: 8 },
+    { text: `Top listed feature ${drivers[0] ? (drivers[0].contribution >= 0 ? 'increases' : 'reduces') : 'contributes to'} the model estimate for this profile.`, size: 10 },
+    { text: 'This educational estimate reflects historical dataset patterns. It is not an approval decision,', size: 9, color: '0.38 0.42 0.47', gap: 8 },
+    { text: 'credit decision, financial recommendation, or prediction of an individual outcome.', size: 9, color: '0.38 0.42 0.47' },
+    { text: 'Bank balance is shown as cash-buffer context and is not used by the default-risk model.', size: 9, color: '0.38 0.42 0.47' },
+  ];
+  let y = 773;
+  const commands = ['0.97 0.97 0.95 rg 0 0 612 792 re f', '0.08 0.17 0.28 rg 0 712 612 80 re f', '0.82 0.66 0.31 rg 0 707 612 5 re f'];
+  for (const line of lines) {
+    y -= line.gap ?? (line.type === 'bar' ? 27 : 19);
+    if (line.type === 'bar') {
+      const x = 198; const width = 260; const height = 9; const barY = y - 3; const fraction = Math.max(0, Math.min(1, line.value / line.max));
+      commands.push(`0.18 0.22 0.28 rg BT /F1 9 Tf 52 ${y} Td (${escape(line.text)}) Tj ET`);
+      commands.push(`0.88 0.89 0.88 rg ${x} ${barY} ${width} ${height} re f`);
+      for (const mark of [0.25, 0.5, 0.75]) commands.push(`0.72 0.74 0.74 RG 0.5 w ${x + width * mark} ${barY - 2} m ${x + width * mark} ${barY + height + 2} l S`);
+      commands.push(`${line.color} rg ${x} ${barY} ${Math.max(1, width * fraction)} ${height} re f`);
+      if (line.threshold != null) commands.push(`0.12 0.16 0.22 RG 1 w ${x + width * line.threshold / line.max} ${barY - 4} m ${x + width * line.threshold / line.max} ${barY + height + 4} l S`);
+      commands.push(`0.16 0.20 0.26 rg BT /F1 9 Tf 470 ${y} Td (${escape(line.suffix)}) Tj ET`);
+    } else {
+      commands.push(`${line.color || '0.16 0.20 0.26'} rg BT /F1 ${line.size} Tf 52 ${y} Td (${escape(line.text)}) Tj ET`);
+    }
+  }
+  commands.push('0.78 0.80 0.80 RG 0.7 w 48 38 m 564 38 l S', '0.38 0.42 0.47 rg BT /F1 8 Tf 52 24 Td (Educational model output | Historical patterns only - not a credit decision.) Tj ET');
+  const stream = commands.join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`,
+  ];
+  let pdf = '%PDF-1.4\n'; const offsets = [0];
+  objects.forEach((object, index) => { offsets.push(new TextEncoder().encode(pdf).length); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+  const xrefOffset = new TextEncoder().encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob); const link = document.createElement('a');
+  const safeName = ascii(record.applicant_name || 'applicant').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'applicant';
+  link.href = url; link.download = `insights-${safeName}-${record.workflow.workflow_id.slice(0, 8)}.pdf`; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 async function apiRequest(url, options) {
   const response = await fetch(url, options);
@@ -196,8 +273,9 @@ export default function App() {
   const [apiStatus, setApiStatus] = useState('checking');
   const [modelInfo, setModelInfo] = useState(null);
   const [workflow, setWorkflow] = useState(null);
+  const [history, setHistory] = useState(readHistory);
   const [liquidReserve, setLiquidReserve] = useState(0);
-  const [reserveType, setReserveType] = useState('Savings balance');
+  const [reserveType, setReserveType] = useState('Savings Balance');
   const [riskTriggerPct, setRiskTriggerPct] = useState(50);
   const [scenarioApr, setScenarioApr] = useState(10);
   const [budgetTargetPct, setBudgetTargetPct] = useState(35);
@@ -238,6 +316,11 @@ export default function App() {
     try {
       const profile = Object.fromEntries(apiFields.map((key) => [key, form[key]]));
       const result = await apiRequest('/workflow/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) });
+      const scenarios = await apiRequest('/workflow/repayment-options', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ loan_amount: form.loan_amount, annual_income: form.income, scenario_apr_pct: scenarioApr, budget_target_pct: budgetTargetPct, term_months: form.loan_term }) });
+      setRepaymentOptions(scenarios); setSelectedPlanId(`emi-${form.loan_term}`);
+      const record = { applicant_name: form.applicant_name.trim(), created_at: new Date().toISOString(), bank_balance_type: reserveType, bank_balance_amount: liquidReserve, profile, workflow: result, repayment_options: scenarios };
+      const updatedHistory = [record, ...readHistory()].slice(0, 50);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(updatedHistory)); setHistory(updatedHistory);
       setWorkflow(result); setApiStatus('online'); setConfirmed(false); goTo(2);
     } catch (cause) { setError(cause.message || 'Model analysis failed. Check the API connection.'); setApiStatus('offline'); }
     finally { setLoading(false); }
@@ -255,7 +338,7 @@ export default function App() {
   };
 
   const restart = () => {
-    setForm(initialForm); setWorkflow(null); setRepaymentOptions(null); setLiquidReserve(0); setRiskTriggerPct(50); setScenarioApr(10); setBudgetTargetPct(35); setAcknowledged(false); setConfirmed(false); setError(''); goTo(0);
+    setForm(initialForm); setWorkflow(null); setRepaymentOptions(null); setLiquidReserve(0); setReserveType('Savings Balance'); setRiskTriggerPct(50); setScenarioApr(10); setBudgetTargetPct(35); setAcknowledged(false); setConfirmed(false); setError(''); goTo(0);
   };
 
   const classifierMetrics = modelInfo?.metrics?.default_classifier?.model;
@@ -272,7 +355,7 @@ export default function App() {
       <div className="topbar-inner">
         <button className="wordmark wordmark-button" onClick={() => goTo(0)} aria-label="Apsara Finance home"><span className="logo-mark"><BrandMark size={33} /></span><span className="brand-name"><strong>Apsara</strong><small>Finance</small></span></button>
         <button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
-        <nav className={`nav-links ${menuOpen ? 'nav-open' : ''}`}><button onClick={() => goTo(0)}>Overview</button><button onClick={() => goTo(1)}>Application</button><button onClick={() => goTo(2)}>Risk analysis</button><button onClick={() => goTo(4)}>Repayment plans</button></nav>
+        <nav className={`nav-links ${menuOpen ? 'nav-open' : ''}`}><button onClick={() => goTo(0)}>Overview</button><button onClick={() => goTo(1)}>Application</button><button onClick={() => goTo(2)}>Risk analysis</button><button onClick={() => goTo(4)}>Repayment plans</button><button onClick={() => { if (page !== 0) goTo(0); setTimeout(() => document.getElementById('history')?.scrollIntoView({ behavior: 'smooth' }), 0); setMenuOpen(false); }}>History</button></nav>
         <div className="top-actions"><button type="button" className={`api-pill ${apiStatus}`} onClick={checkApi} title="Click to refresh model connection"><i />{apiStatus === 'online' ? 'Models online' : apiStatus === 'checking' ? 'Connecting' : 'API offline'}</button><button className="nav-cta" onClick={() => goTo(1)}>{page === 0 ? 'Start application' : 'Application workspace'} <ArrowRight size={14} /></button></div>
       </div>
     </header>
@@ -469,7 +552,7 @@ export default function App() {
         </section>
       </>}
 
-      {page > 0 && <section className="workspace section-wrap multi-page-workspace" id="workflow"><div className="section-heading"><div><span className="section-eyebrow">GUIDED APPLICATION WORKFLOW</span><h2>{page === 1 ? 'Application intake' : page === 2 ? 'Model risk signal' : page === 3 ? 'Additional context' : page === 4 ? 'Repayment plans' : 'Workflow summary'}</h2><p>{page === 1 ? 'Use representative, non-personal values for this educational demo.' : page === 2 ? 'Review the historical default estimate and the model’s strongest signals.' : page === 3 ? 'Follow the risk-trigger branch and add optional financial context.' : page === 4 ? 'Compare monthly repayment and one-time scenarios with your own assumptions.' : 'Review the outcome of this simulated, non-binding workflow.'}</p></div><div className="workspace-meta"><span><LockKeyhole size={14} /> Applicant inputs are not stored</span><span className="meta-separator" />{workflow && <button type="button" onClick={restart}>Start over</button>}</div></div>
+      {page > 0 && <section className="workspace section-wrap multi-page-workspace" id="workflow"><div className="section-heading"><div><span className="section-eyebrow">GUIDED APPLICATION WORKFLOW</span><h2>{page === 1 ? 'Financial profile first' : page === 2 ? 'Risk & repayment analysis' : page === 3 ? 'Additional context' : page === 4 ? 'Repayment plans' : 'Workflow summary'}</h2><p>{page === 1 ? 'Start with available bank balance, then enter salary and loan details for the analysis.' : page === 2 ? 'Review the historical default estimate and monthly repayment as a share of salary.' : page === 3 ? 'Follow the risk-trigger branch and review optional financial context.' : page === 4 ? 'Compare monthly repayment and one-time scenarios with your own assumptions.' : 'Review the outcome of this simulated, non-binding workflow.'}</p></div><div className="workspace-meta"><span><LockKeyhole size={14} /> History stays in this browser</span><span className="meta-separator" />{workflow && <button type="button" onClick={restart}>Start over</button>}</div></div>
         <StageRail current={page} onSelect={goTo} />
 
         {page === 1 && (() => {
@@ -500,6 +583,25 @@ export default function App() {
                     <p>Adjust values interactively to explore historical credit sensitivity.</p>
                   </div>
                   <span className="step-chip">01 <span>/</span> INTAKE</span>
+                </div>
+
+                <div className="form-section-group">
+                  <div className="section-subtitle"><span>1. BANK BALANCE DETAILS</span></div>
+                  <p className="form-helper-copy">Enter an approximate balance only. Do not enter account numbers or banking credentials.</p>
+                  <div className="reserve-type-grid">
+                    {['Savings Balance', 'Fixed Deposit', 'Liquid Portfolio', 'None'].map((type) => <button type="button" key={type} className={`reserve-type-chip ${reserveType === type ? 'selected' : ''}`} onClick={() => { setReserveType(type); if (type === 'None') setLiquidReserve(0); }}><span>{type}</span></button>)}
+                  </div>
+                  {reserveType !== 'None' && <div className="interactive-slider-box" style={{ marginTop: '14px' }}>
+                    <div className="slider-header-row"><div className="slider-title"><span>Available Balance</span><small>Approximate cash or liquid savings</small></div><div className="slider-val-badge" style={{ background: '#EAF5EE', color: '#2D7D5F' }}><strong>{currency(liquidReserve)}</strong></div></div>
+                    <Field label="Balance amount"><span className="input-wrap"><span className="input-affix">$</span><input type="number" min={0} max={10000000} step={100} value={liquidReserve} onChange={(e) => setLiquidReserve(Number(e.target.value))} /></span></Field>
+                    <input type="range" className="slider-range-bar" min={0} max={100000} step={1000} value={liquidReserve} onChange={(e) => setLiquidReserve(Number(e.target.value))} />
+                    <div className="slider-track-labels"><span>$0</span><span>$25,000</span><span>$50,000</span><span>$100,000</span></div>
+                  </div>}
+                </div>
+
+                <div className="form-section-group">
+                  <div className="section-subtitle"><span>APPLICANT</span></div>
+                  <Field label="Name"><span className="input-wrap"><input type="text" value={form.applicant_name} required autoComplete="name" onChange={changeField('applicant_name')} placeholder="Enter applicant name" /></span></Field>
                 </div>
 
                 {/* Section 1: Loan Purpose & Requested Capital */}
@@ -557,15 +659,6 @@ export default function App() {
                       prefix="$"
                       onChange={changeField('income')}
                     />
-                    <Field label="Applicant Reference (Demo)">
-                      <span className="input-wrap">
-                        <input
-                          type="text"
-                          value={form.applicant_name}
-                          onChange={(e) => setForm({ ...form, applicant_name: e.target.value })}
-                        />
-                      </span>
-                    </Field>
                   </div>
 
                   {/* Interactive Credit Score Slider */}
@@ -976,6 +1069,16 @@ export default function App() {
                     </div>
                   </div>
 
+                  <div className="salary-ratio-card glass-card">
+                    <div><span className="rate-kicker">MONTHLY REPAYMENT VS SALARY</span><h5>Repayment-to-Salary Ratio</h5></div>
+                    {selectedPlan && repaymentOptions ? <>
+                      <strong className="salary-ratio-value">{((selectedPlan.monthly_payment / repaymentOptions.monthly_income) * 100).toFixed(1)}%</strong>
+                      <p>{currency(selectedPlan.monthly_payment)} estimated monthly payment ÷ {currency(repaymentOptions.monthly_income)} gross monthly salary. Based on a {scenarioApr}% scenario APR over {form.loan_term} months.</p>
+                    </> : <p>Repayment ratio is being calculated from your loan and salary details.</p>}
+                    <p>Available {reserveType.toLowerCase()}: {currency(liquidReserve)}. This balance informs the cash buffer estimate; the historical risk model does not use bank balance as a prediction feature.</p>
+                    <small>Illustrative affordability measure; not an approval or lending decision.</small>
+                  </div>
+
                   {/* Historical Rate Model Card */}
                   <div className="rate-model-card glass-card">
                     <div className="rate-card-header">
@@ -1099,52 +1202,10 @@ export default function App() {
                     <p>Enter optional savings or fixed deposit balances to test debt coverage runway.</p>
                   </div>
 
-                  {/* Reserve Type Segmented Selector */}
-                  <div className="reserve-type-grid">
-                    {['Savings Balance', 'Fixed Deposit', 'Liquid Portfolio', 'None'].map((type) => (
-                      <button
-                        type="button"
-                        key={type}
-                        className={`reserve-type-chip ${reserveType === type ? 'selected' : ''}`}
-                        onClick={() => {
-                          setReserveType(type);
-                          if (type === 'None') setLiquidReserve(0);
-                        }}
-                      >
-                        <span>{type}</span>
-                      </button>
-                    ))}
+                  <div className="runway-shield-box">
+                    <div className="runway-icon-circle"><Wallet size={24} /></div>
+                    <div className="runway-copy"><div className="runway-val-row"><strong>{currency(liquidReserve)}</strong><span className="runway-tag">{reserveType}</span></div><p>Balance details were collected at the start of intake and used here to estimate payment runway.</p></div>
                   </div>
-
-                  {/* Reserve Amount Slider & Input */}
-                  {reserveType !== 'None' && (
-                    <div className="interactive-slider-box" style={{ marginTop: '16px' }}>
-                      <div className="slider-header-row">
-                        <div className="slider-title">
-                          <span>Liquid Buffer Balance</span>
-                          <small>Stays in local browser memory</small>
-                        </div>
-                        <div className="slider-val-badge" style={{ background: '#EAF5EE', color: '#2D7D5F' }}>
-                          <strong>{currency(liquidReserve)}</strong>
-                        </div>
-                      </div>
-                      <input
-                        type="range"
-                        className="slider-range-bar"
-                        min={0}
-                        max={100000}
-                        step={1000}
-                        value={liquidReserve}
-                        onChange={(e) => setLiquidReserve(Number(e.target.value))}
-                      />
-                      <div className="slider-track-labels">
-                        <span>$0</span>
-                        <span>$25,000</span>
-                        <span>$50,000</span>
-                        <span>$100,000</span>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Runway Debt Shield Visual */}
                   <div className="runway-shield-box">
@@ -1647,6 +1708,20 @@ export default function App() {
           );
         })()}
       </section>}
+
+      <section className="workspace section-wrap history-section" id="history">
+        <div className="section-heading"><div><span className="section-eyebrow">SAVED IN THIS BROWSER</span><h2>Assessment history</h2><p>Choose a person’s record to download their individual risk and insight report as a PDF.</p></div></div>
+        {history.length === 0 ? <div className="history-empty"><FileSearch size={22} /><p>Your completed assessments will appear here.</p><button type="button" onClick={() => goTo(1)}>Start an assessment <ArrowRight size={14} /></button></div> : <div className="history-list">{history.map((record) => {
+          const prediction = record.workflow.prediction;
+          const drivers = (record.workflow.explanation?.default_log_odds_contributions || []).slice().sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)).slice(0, 3);
+          return <article className="history-card" key={record.workflow.workflow_id}>
+            <div className="history-card-title"><div><strong>{record.applicant_name || 'Applicant'}</strong><small>{new Date(record.created_at).toLocaleString()}</small></div><span className="history-reference">Ref {record.workflow.workflow_id.slice(0, 8)}</span><button type="button" className="button-outline history-download" onClick={() => downloadPersonInsight(record)}><Download size={15} /> Download this person’s PDF</button></div>
+            <div className="history-metrics"><span><small>Default risk estimate</small><strong>{(prediction.default_probability * 100).toFixed(1)}%</strong></span><span><small>Payment / salary</small><strong>{(() => { const plan = record.repayment_options?.plans?.find((item) => item.id === `emi-${record.profile.loan_term}`); return plan && record.repayment_options.monthly_income ? `${((plan.monthly_payment / record.repayment_options.monthly_income) * 100).toFixed(1)}%` : 'Unavailable'; })()}</strong></span><span><small>Bank balance</small><strong>{currency(record.bank_balance_amount)}</strong></span><span><small>Historical rate estimate</small><strong>{prediction.estimated_interest_rate_pct != null ? `${prediction.estimated_interest_rate_pct.toFixed(2)}%` : 'Unavailable'}</strong></span></div>
+            <div className="history-insights"><small>Leading model signals</small><p>{drivers.length ? drivers.map((item) => `${humanizeFeature(item.feature)} (${item.contribution >= 0 ? '+' : ''}${item.contribution.toFixed(3)})`).join(' · ') : 'No feature insights available.'}</p></div>
+          </article>;
+        })}</div>}
+        <p className="history-privacy"><LockKeyhole size={13} /> Records are saved in this browser only and are not sent to the API as history.</p>
+      </section>
     </main>
     <footer className="footer section-wrap"><button className="wordmark wordmark-button" onClick={() => goTo(0)}><span className="logo-mark"><BrandMark size={26} /></span><span className="brand-name"><strong>Apsara</strong><small>Finance</small></span></button><span>Local educational demo <i /> multi-step workflow</span><span className="footer-note"><ShieldCheck size={13} /> No credit decision, signature, or transfer is made.</span></footer>
   </div>;

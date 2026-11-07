@@ -1,13 +1,26 @@
 
 > ai-risk-based-loan-pricing-engine@1.0.0 dev
-> vite --host 127.0.0.1
+> vite --host 127.0.0.1 --port 5173
 
 
-  VITE v8.3.6  ready in 537 ms
+  VITE v8.3.6  ready in 1585 ms
 
   ➜  Local:   http://127.0.0.1:5173/
-5:33:14 pm [vite] (client) hmr update /src/App.jsx
-5:34:16 pm [vite] (client) hmr update /src/App.jsx
-6:03:28 pm [vite] (client) hmr update /src/App.jsx
-6:04:15 pm [vite] (client) hmr update /src/App.jsx
-6:04:23 pm [vite] (client) hmr update /src/index.css
+2:06:27 pm [vite] (client) hmr update /src/App.jsx
+2:07:00 pm [vite] (client) hmr update /src/App.jsx
+2:07:56 pm [vite] (client) hmr update /src/App.jsx
+2:08:38 pm [vite] (client) hmr update /src/index.css
+2:11:00 pm [vite] (client) hmr update /src/App.jsx
+2:11:29 pm [vite] (client) hmr update /src/App.jsx
+2:11:51 pm [vite] (client) hmr update /src/App.jsx
+2:12:50 pm [vite] (client) hmr update /src/App.jsx
+2:13:09 pm [vite] (client) hmr update /src/index.css
+2:13:25 pm [vite] (client) hmr update /src/App.jsx
+2:13:46 pm [vite] (client) hmr update /src/App.jsx
+2:14:25 pm [vite] (client) hmr update /src/App.jsx
+2:14:38 pm [vite] (client) hmr update /src/index.css
+2:16:36 pm [vite] (client) hmr update /src/App.jsx
+2:28:31 pm [vite] (client) hmr update /src/App.jsx
+2:29:05 pm [vite] (client) hmr update /src/App.jsx
+2:50:07 pm [vite] (client) hmr update /src/App.jsx
+2:50:45 pm [vite] (client) hmr update /src/App.jsx

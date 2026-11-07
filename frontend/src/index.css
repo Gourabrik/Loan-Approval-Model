@@ -2157,3 +2157,29 @@ img { display: block; max-width: 100%; }
     transition-duration: .01ms !important;
   }
 }
+.history-section { padding-top: 56px; padding-bottom: 72px; border-top: 1px solid var(--rule); }
+.history-list { display: grid; gap: 12px; }
+.history-card { padding: 20px 22px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--white); box-shadow: var(--shadow-sm); }
+.history-card-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.history-card-title > div { display: grid; gap: 4px; }
+.history-card-title strong { color: var(--ink); font-family: var(--font-serif); font-size: 17px; }
+.history-card-title small, .history-reference { color: var(--subtle); font-size: 10px; }
+.history-reference { font-family: monospace; }
+.history-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 17px 0; margin-top: 14px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.history-metrics span { display: grid; gap: 5px; }
+.history-metrics small, .history-insights > small { color: var(--subtle); font-size: 10px; }
+.history-metrics strong { color: var(--ink); font-size: 15px; }
+.history-insights { padding-top: 13px; }
+.history-insights p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.history-empty { display: grid; justify-items: center; gap: 9px; padding: 35px 20px; border: 1px dashed var(--rule-dark); border-radius: var(--r-md); color: var(--subtle); }
+.history-empty p { margin: 0; font-size: 12px; }
+.history-empty button, .history-download { display: inline-flex; align-items: center; gap: 8px; }
+.history-empty button { border: 0; background: transparent; color: var(--gold-deep); font-size: 11px; font-weight: 700; cursor: pointer; }
+.history-privacy { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; color: var(--subtle); font-size: 10px; }
+@media (max-width: 640px) { .history-metrics { grid-template-columns: 1fr; gap: 12px; } .history-card { padding: 16px; } .history-section .section-heading { align-items: flex-start; flex-direction: column; gap: 14px; } }
+.form-helper-copy { margin: -4px 0 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.salary-ratio-card { display: grid; gap: 8px; padding: 19px 21px; border: 1px solid var(--border); border-radius: var(--r-md); background: linear-gradient(135deg, #fff, var(--gold-pale)); }
+.salary-ratio-card h5 { margin: 5px 0 0; color: var(--ink); font-family: var(--font-serif); font-size: 17px; }
+.salary-ratio-value { color: var(--gold-deep); font-family: var(--font-serif); font-size: 30px; }
+.salary-ratio-card p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.salary-ratio-card small { color: var(--subtle); font-size: 9px; }
