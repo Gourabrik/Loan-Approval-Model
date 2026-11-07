@@ -12,6 +12,7 @@ import numpy as np
 import optuna
 import pandas as pd
 from sklearn.compose import ColumnTransformer
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
     average_precision_score,
@@ -64,12 +65,14 @@ def make_preprocessor() -> ColumnTransformer:
 def make_pipeline(
     task: str, params: dict[str, Any], positive_weight: float
 ) -> Pipeline:
+    params = dict(params)
+    class_weight = params.pop("scale_pos_weight", positive_weight)
     if task == "default":
         model = XGBClassifier(
             **params,
             objective="binary:logistic",
             eval_metric="logloss",
-            scale_pos_weight=positive_weight,
+            scale_pos_weight=class_weight,
             tree_method="hist",
             n_jobs=max(1, min(4, os.cpu_count() or 1)),
             random_state=RANDOM_STATE,
@@ -95,7 +98,7 @@ def make_pipeline(
 
 
 def suggest_parameters(trial: optuna.Trial) -> dict[str, Any]:
-    return {
+    params = {
         "n_estimators": trial.suggest_int("n_estimators", 100, 350),
         "max_depth": trial.suggest_int("max_depth", 3, 8),
         "learning_rate": trial.suggest_float("learning_rate", 0.02, 0.2, log=True),
@@ -104,6 +107,13 @@ def suggest_parameters(trial: optuna.Trial) -> dict[str, Any]:
         "min_child_weight": trial.suggest_float("min_child_weight", 1.0, 10.0),
         "reg_lambda": trial.suggest_float("reg_lambda", 0.1, 10.0, log=True),
     }
+    if trial.study.study_name == "default-xgboost":
+        # Tune the imbalance correction instead of always forcing a 1:1 class
+        # balance, which can inflate probabilities and hurt calibration.
+        params["scale_pos_weight"] = trial.suggest_float(
+            "scale_pos_weight", 0.5, 8.0, log=True
+        )
+    return params
 
 
 def tune_model(
@@ -128,7 +138,7 @@ def tune_model(
         pipeline.fit(x_fit, y_fit)
         if task == "default":
             probability = pipeline.predict_proba(x_valid)[:, 1]
-            return float(roc_auc_score(y_valid, probability))
+            return float(average_precision_score(y_valid, probability))
         prediction = pipeline.predict(x_valid)
         return float(mean_absolute_error(y_valid, prediction))
 
@@ -140,7 +150,11 @@ def tune_model(
     )
     study.optimize(objective, n_trials=trials, n_jobs=1, show_progress_bar=False)
     if task == "default":
-        baseline_value = 0.5
+        baseline_value = float(
+            average_precision_score(
+                y_valid, np.full(len(y_valid), float(y_fit.mean()))
+            )
+        )
     else:
         baseline_value = float(
             mean_absolute_error(
@@ -152,6 +166,7 @@ def tune_model(
 
 def evaluate_models(
     classifier: Pipeline,
+    probability_model: Any,
     regressor: Pipeline,
     x_test: pd.DataFrame,
     y_default_train: pd.Series,
@@ -159,7 +174,7 @@ def evaluate_models(
     y_default: pd.Series,
     y_rate: pd.Series,
 ) -> dict[str, dict[str, float]]:
-    default_probability = classifier.predict_proba(x_test)[:, 1]
+    default_probability = probability_model.predict_proba(x_test)[:, 1]
     rate_prediction = regressor.predict(x_test)
     baseline_default_probability = np.full(
         len(y_default), float(y_default_train.mean())
@@ -236,7 +251,7 @@ def train_models(
     y_rate_test = test_frame["interest_rate"]
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
-    classifier_params, classifier_validation_auc, _ = tune_model(
+    classifier_params, classifier_validation_ap, _ = tune_model(
         "default", x_train, y_default_train, trials, random_state
     )
     (
@@ -252,10 +267,19 @@ def train_models(
     classifier = make_pipeline("default", classifier_params, positive_weight)
     regressor = make_pipeline("interest_rate", regressor_params, positive_weight)
     classifier.fit(x_train, y_default_train)
+    probability_model = CalibratedClassifierCV(
+        estimator=make_pipeline("default", classifier_params, positive_weight),
+        method="sigmoid",
+        cv=3,
+        ensemble=False,
+        n_jobs=1,
+    )
+    probability_model.fit(x_train, y_default_train)
     regressor.fit(x_train, y_rate_train)
 
     metrics = evaluate_models(
         classifier,
+        probability_model,
         regressor,
         x_test,
         y_default_train,
@@ -275,8 +299,9 @@ def train_models(
             **common_metadata,
             "target": "default",
             "pipeline": classifier,
+            "probability_model": probability_model,
             "best_params": classifier_params,
-            "validation_roc_auc": classifier_validation_auc,
+            "validation_average_precision": classifier_validation_ap,
             "metrics": metrics["default_classifier"],
             "baseline_metrics": metrics["default_classifier_baseline"],
         },
@@ -343,7 +368,7 @@ def main() -> None:
         "--processed-dir", type=Path, default=ROOT / "data" / "processed"
     )
     parser.add_argument("--artifact-dir", type=Path, default=ROOT / "artifacts")
-    parser.add_argument("--trials", type=int, default=10)
+    parser.add_argument("--trials", type=int, default=20)
     parser.add_argument("--test-size", type=float, default=0.2)
     parser.add_argument("--random-state", type=int, default=RANDOM_STATE)
     arguments = parser.parse_args()

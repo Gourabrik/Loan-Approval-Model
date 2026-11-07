@@ -30,7 +30,7 @@ Run these commands from the repository root in PowerShell. Use Python 3.11 or ne
 2. Train the models, create cleaned train/test splits, and save model/SHAP artifacts:
 
    ```powershell
-   .\.venv\Scripts\python.exe -m src.trainer --trials 10
+   .\.venv\Scripts\python.exe -m src.trainer --trials 20
    ```
 
    The command reads the immutable `data/raw/Loan_default.csv`, writes `data/processed/train.csv` and `data/processed/test.csv`, and creates:
@@ -41,7 +41,7 @@ Run these commands from the repository root in PowerShell. Use Python 3.11 or ne
    - `artifacts/global_shap_importance.joblib`
    - `artifacts/training_metrics.json`
 
-   Use `--trials` to change the number of Optuna trials per model. The default is 10; more trials take longer.
+   Use `--trials` to change the number of Optuna trials per model. The default is 20; more trials take longer. Default-risk probabilities are calibrated using cross-validation on the training split.
 
 3. Start the API:
 

@@ -113,7 +113,7 @@ async def predict(
         [application.model_dump()],
         columns=classifier_bundle["feature_columns"],
     )
-    classifier = classifier_bundle["pipeline"]
+    classifier = classifier_bundle.get("probability_model", classifier_bundle["pipeline"])
     positive_class_indices = np.flatnonzero(classifier.classes_ == 1)
     if len(positive_class_indices) != 1:
         raise RuntimeError("The classifier artifact does not contain the expected positive class.")

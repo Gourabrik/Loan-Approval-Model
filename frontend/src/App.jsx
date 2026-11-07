@@ -31,6 +31,13 @@ const stages = [
 ];
 
 const routePaths = ['/', '/application', '/risk-review', '/additional-context', '/repayment-plans', '/complete'];
+const monthlyInstallment = (principal, annualRatePct, termMonths) => {
+  if (!termMonths || termMonths <= 0) return principal;
+  const monthlyRate = annualRatePct / 1200;
+  if (monthlyRate === 0) return principal / termMonths;
+  const growth = (1 + monthlyRate) ** termMonths;
+  return principal * monthlyRate * growth / (growth - 1);
+};
 const routeIndex = (path) => Math.max(0, routePaths.indexOf(path));
 const currency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 
@@ -468,7 +475,7 @@ export default function App() {
         {page === 1 && (() => {
           const ltiRatio = (form.loan_amount / Math.max(1, form.income)) * 100;
           const dtiPct = form.dti_ratio * 100;
-          const approxMonthly = Math.round((form.loan_amount * (1 + 0.085 * (form.loan_term / 12))) / form.loan_term);
+          const approxMonthly = Math.round(monthlyInstallment(form.loan_amount, scenarioApr, form.loan_term));
           const creditTier = form.credit_score >= 750 ? { label: 'Exceptional', color: '#27AE60', bg: '#EAF5EE' }
             : form.credit_score >= 700 ? { label: 'Good', color: '#C9A84C', bg: '#FDF8EA' }
             : form.credit_score >= 640 ? { label: 'Fair', color: '#B87A1A', bg: '#FEF6E4' }
@@ -800,7 +807,7 @@ export default function App() {
                   <div className="radar-metric-block">
                     <div className="radar-metric-header">
                       <span>Loan-to-Income Exposure</span>
-                      <strong>{ltiRatio.toFixed(1)}% of salary</strong>
+                      <strong>{ltiRatio.toFixed(1)}% of annual income</strong>
                     </div>
                     <div className="lti-track">
                       <div
@@ -824,7 +831,7 @@ export default function App() {
                       <small>/ month</small>
                     </div>
                     <p className="preview-note">
-                      Based on {form.loan_term}mo term for {currency(form.loan_amount)} requested. Actual rates calculated via ML model.
+                      Estimate uses {scenarioApr}% APR over {form.loan_term} months. Taxes, fees, and other debts are excluded.
                     </p>
                   </div>
 
@@ -1059,7 +1066,7 @@ export default function App() {
         })()}
 
         {page === 3 && workflow && (() => {
-          const approxMonthly = Math.round((form.loan_amount * (1 + (scenarioApr / 100) * (form.loan_term / 12))) / form.loan_term);
+          const approxMonthly = Math.round(monthlyInstallment(form.loan_amount, scenarioApr, form.loan_term));
           const runwayMonths = liquidReserve > 0 && approxMonthly > 0 ? (liquidReserve / approxMonthly).toFixed(1) : 0;
           const prob = workflow.prediction.default_probability;
           const probPct = (prob * 100).toFixed(1);
@@ -1309,7 +1316,7 @@ export default function App() {
                       <small>Max % of monthly income</small>
                     </div>
                     <div className="slider-val-badge" style={{ background: '#EAF5EE', color: '#2D7D5F' }}>
-                      <strong>{budgetTargetPct}% of salary</strong>
+                      <strong>{budgetTargetPct}% of gross monthly income</strong>
                     </div>
                   </div>
                   <input
@@ -1384,12 +1391,16 @@ export default function App() {
                         <span>Estimated Interest</span>
                         <strong>{currency(plan.total_interest)}</strong>
                       </div>
+                      <div className="breakdown-row">
+                        <span>Gross Monthly Salary</span>
+                        <strong>{currency(repaymentOptions.monthly_income)}</strong>
+                      </div>
                     </div>
 
                     {monthlyRatio != null && (
                       <div className={`plan-target-badge ${isWithin ? 'within' : 'exceeds'}`}>
                         {isWithin ? <Check size={12} /> : <AlertTriangle size={12} />}
-                        <span>{monthlyRatio.toFixed(1)}% of income ({isWithin ? 'Within Target' : 'Exceeds Target'})</span>
+                        <span>{currency(plan.monthly_payment)} EMI ÷ {currency(repaymentOptions.monthly_income)} gross monthly salary = {monthlyRatio.toFixed(1)}% ({isWithin ? 'Within Target' : 'Exceeds Target'})</span>
                       </div>
                     )}
                   </div>
@@ -1498,13 +1509,15 @@ export default function App() {
                       <strong>{selectedPlan.term_months ? `${selectedPlan.term_months} Months` : 'N/A'}</strong>
                     </div>
                     <div className="d-stat-item">
-                      <span>Monthly Income</span>
+                      <span>Gross Monthly Income</span>
                       <strong>{currency(repaymentOptions.monthly_income)}</strong>
                     </div>
                     <div className="d-stat-item">
                       <span>Payment Burden</span>
-                      <strong className={selectedPlan.monthly_payment / repaymentOptions.monthly_income > 0.4 ? 'text-warn' : 'text-good'}>
-                        {((selectedPlan.monthly_payment / repaymentOptions.monthly_income) * 100).toFixed(1)}% of salary
+                      <strong className={`payment-burden-value ${monthlyPaymentRatio == null ? '' : monthlyPaymentRatio > 0.4 ? 'text-warn' : 'text-good'}`}>
+                        {monthlyPaymentRatio == null
+                          ? 'No monthly EMI (one-time payment)'
+                          : `${currency(selectedPlan.monthly_payment)} ÷ ${currency(repaymentOptions.monthly_income)} = ${(monthlyPaymentRatio * 100).toFixed(1)}%`}
                       </strong>
                     </div>
                   </div>

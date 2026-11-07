@@ -1,0 +1,13 @@
+
+> ai-risk-based-loan-pricing-engine@1.0.0 dev
+> vite --host 127.0.0.1
+
+
+  VITE v8.3.6  ready in 537 ms
+
+  ➜  Local:   http://127.0.0.1:5173/
+5:33:14 pm [vite] (client) hmr update /src/App.jsx
+5:34:16 pm [vite] (client) hmr update /src/App.jsx
+6:03:28 pm [vite] (client) hmr update /src/App.jsx
+6:04:15 pm [vite] (client) hmr update /src/App.jsx
+6:04:23 pm [vite] (client) hmr update /src/index.css

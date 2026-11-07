@@ -1720,6 +1720,7 @@ img { display: block; max-width: 100%; }
 }
 .d-stat-item span { font-size: 9px; color: var(--subtle); font-weight: 600; text-transform: uppercase; }
 .d-stat-item strong { font-size: 12px; color: var(--ink); font-weight: 700; white-space: nowrap; }
+.d-stat-item .payment-burden-value { white-space: normal; overflow-wrap: anywhere; }
 
 /* Right Column: Risk & Reserve */
 .dossier-risk-box {
