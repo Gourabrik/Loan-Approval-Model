@@ -1,0 +1,50 @@
+{
+  "source_dataset": "C:\\Users\\goura\\OneDrive\\Desktop\\Loan-Approval-Model\\data\\raw\\Loan_default.csv",
+  "train_rows": 204277,
+  "test_rows": 51070,
+  "trials_per_model": 2,
+  "random_state": 42,
+  "metrics": {
+    "default_classifier": {
+      "roc_auc": 0.7212619463088685,
+      "average_precision": 0.2860349029437066,
+      "brier_score": 0.19196519255638123
+    },
+    "default_classifier_baseline": {
+      "roc_auc": 0.5,
+      "average_precision": 0.11613471705502251,
+      "brier_score": 0.10264744461494087
+    },
+    "interest_rate_regressor": {
+      "mae_percentage_points": 5.763240448183291,
+      "rmse_percentage_points": 6.668721667416375,
+      "r2": -0.011928115688455199
+    },
+    "interest_rate_baseline": {
+      "mae_percentage_points": 5.738594252622375,
+      "rmse_percentage_points": 6.629341387507894,
+      "r2": -1.2083547520580495e-05
+    }
+  },
+  "best_params": {
+    "default_classifier": {
+      "n_estimators": 317,
+      "max_depth": 6,
+      "learning_rate": 0.10211806418789517,
+      "subsample": 0.7061753482887407,
+      "colsample_bytree": 0.9909729556485982,
+      "min_child_weight": 8.491983767203795,
+      "reg_lambda": 0.26587543983272705
+    },
+    "interest_rate_regressor": {
+      "n_estimators": 317,
+      "max_depth": 6,
+      "learning_rate": 0.10211806418789517,
+      "subsample": 0.7061753482887407,
+      "colsample_bytree": 0.9909729556485982,
+      "min_child_weight": 8.491983767203795,
+      "reg_lambda": 0.26587543983272705
+    }
+  },
+  "disclaimer": "Educational demonstration only. Outputs estimate patterns in historical data; they are not loan approvals, credit decisions, or recommended lending rates."
+}
