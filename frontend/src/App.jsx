@@ -39,7 +39,7 @@ const monthlyInstallment = (principal, annualRatePct, termMonths) => {
   return principal * monthlyRate * growth / (growth - 1);
 };
 const routeIndex = (path) => Math.max(0, routePaths.indexOf(path));
-const currency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
+const currency = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value || 0);
 const HISTORY_KEY = 'apsara-assessment-history';
 const readHistory = () => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; } };
 function downloadPersonInsight(record) {
@@ -51,7 +51,7 @@ function downloadPersonInsight(record) {
   const riskPct = prediction.default_probability * 100;
   const comparisonMax = Math.max(record.bank_balance_amount || 0, record.profile.loan_amount || 0, 1);
   const drivers = (record.workflow.explanation?.default_log_odds_contributions || []).slice().sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)).slice(0, 5);
-  const ascii = (value) => String(value ?? '').normalize('NFKD').replace(/[^\x20-\x7E]/g, '?');
+  const ascii = (value) => String(value ?? '').replace(/₹/g, 'INR ').normalize('NFKD').replace(/[^\x20-\x7E]/g, '?');
   const escape = (value) => ascii(value).replaceAll('\\', '\\\\').replaceAll('(', '\\(').replaceAll(')', '\\)');
   const lines = [
     { text: 'APSARA FINANCE | INDIVIDUAL MODEL INSIGHT', size: 17, color: '1 1 1', gap: 23, header: true },
@@ -70,7 +70,7 @@ function downloadPersonInsight(record) {
     { type: 'bar', text: 'Bank balance', value: record.bank_balance_amount || 0, max: comparisonMax, color: '0.60 0.39 0.53', suffix: currency(record.bank_balance_amount), gap: 28 },
     { type: 'bar', text: 'Requested loan', value: record.profile.loan_amount || 0, max: comparisonMax, color: '0.40 0.27 0.38', suffix: currency(record.profile.loan_amount), gap: 28 },
     { text: 'Risk scale: 0-100%. Payment ratio scale: 0-50%; marker indicates a 35% reference target.', size: 8, color: '0.38 0.42 0.47', gap: 15 },
-    { text: 'Bank balance and requested loan use the same dollar scale for direct comparison.', size: 8, color: '0.38 0.42 0.47', gap: 15 },
+    { text: 'Bank balance and requested loan use the same rupee scale for direct comparison.', size: 8, color: '0.38 0.42 0.47', gap: 15 },
     { text: 'APPLICANT PROFILE', size: 12, color: '1 1 1', section: true, sectionColor: '0.30 0.17 0.28', gap: 27 },
     { text: `Age: ${record.profile.age} | Credit score: ${record.profile.credit_score} | DTI: ${(record.profile.dti_ratio * 100).toFixed(0)}%`, size: 10, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
     { text: `Employment: ${record.profile.employment_type} | Purpose: ${record.profile.loan_purpose} | Education: ${record.profile.education}`, size: 10, panelColor: '0.98 0.95 0.96', accentColor: '0.60 0.39 0.53' },
@@ -176,7 +176,7 @@ function BrandMark({ size = 28 }) {
     <path d="M27 25C20 18 13 15 5 16c4 3 7 6 10 10-5-1-9 0-13 3 7 1 13 3 19 7M37 25c7-7 14-10 22-9-4 3-7 6-10 10 5-1 9 0 13 3-7 1-13 3-19 7" stroke="url(#wing)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="m24 28-13-7m12 12L8 30m18 4-13 2m27-8 13-7m-12 10 15-3m-18 6 13 2" stroke="#D7C08C" strokeOpacity=".88" strokeWidth="1.4" strokeLinecap="round"/>
     <circle cx="32" cy="32" r="13" fill="url(#coin)" stroke="#E5C989" strokeWidth="1.7"/>
-    <path d="M37 26c-1.3-2-8-2.5-9.4 1.2-2.1 5.5 10.9 3.8 9.3 9.6-1.2 4.3-8.3 4.5-11.1 1.1M32.4 20v24" stroke="#F5EBD3" strokeWidth="2.2" strokeLinecap="round"/>
+    <path d="M26 25h12M26 29h8M29 25v7c3 0 5.5-1 5.5-3.5S32 25 29 25M29 32l6 8" stroke="#F5EBD3" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
     <defs><linearGradient id="wing" x1="5" y1="17" x2="60" y2="39" gradientUnits="userSpaceOnUse"><stop stopColor="#8FE1CB"/><stop offset=".5" stopColor="#E7CB8C"/><stop offset="1" stopColor="#8FE1CB"/></linearGradient><linearGradient id="coin" x1="20" y1="17" x2="46" y2="48" gradientUnits="userSpaceOnUse"><stop stopColor="#35536A"/><stop offset="1" stopColor="#172640"/></linearGradient></defs>
   </svg>;
 }
@@ -468,7 +468,7 @@ export default function App() {
                   <small>SHAP contribution</small>
                 </div>
                 <div className="driver-mini-bar">
-                  <span>Annual Income ($95,000)</span>
+                  <span>Annual Income (₹95,000)</span>
                   <div className="mini-track"><div className="mini-fill pos" style={{ width: '75%' }} /></div>
                 </div>
                 <div className="driver-mini-bar">
@@ -476,7 +476,7 @@ export default function App() {
                   <div className="mini-track"><div className="mini-fill pos" style={{ width: '60%' }} /></div>
                 </div>
                 <div className="driver-mini-bar">
-                  <span>Requested Loan ($30,000)</span>
+                  <span>Requested Loan (₹30,000)</span>
                   <div className="mini-track"><div className="mini-fill neg" style={{ width: '38%' }} /></div>
                 </div>
               </div>
@@ -620,9 +620,9 @@ export default function App() {
                   </div>
                   {reserveType !== 'None' && <div className="interactive-slider-box" style={{ marginTop: '14px' }}>
                     <div className="slider-header-row"><div className="slider-title"><span>Available Balance</span><small>Approximate cash or liquid savings</small></div><div className="slider-val-badge" style={{ background: '#EAF5EE', color: '#2D7D5F' }}><strong>{currency(liquidReserve)}</strong></div></div>
-                    <Field label="Balance amount"><span className="input-wrap"><span className="input-affix">$</span><input type="number" min={0} max={10000000} step={100} value={liquidReserve} onChange={(e) => setLiquidReserve(Number(e.target.value))} /></span></Field>
+                    <Field label="Balance amount"><span className="input-wrap"><span className="input-affix">₹</span><input type="number" min={0} max={10000000} step={100} value={liquidReserve} onChange={(e) => setLiquidReserve(Number(e.target.value))} /></span></Field>
                     <input type="range" className="slider-range-bar" min={0} max={100000} step={1000} value={liquidReserve} onChange={(e) => setLiquidReserve(Number(e.target.value))} />
-                    <div className="slider-track-labels"><span>$0</span><span>$25,000</span><span>$50,000</span><span>$100,000</span></div>
+                    <div className="slider-track-labels"><span>₹0</span><span>₹25,000</span><span>₹50,000</span><span>₹1,00,000</span></div>
                   </div>}
                 </div>
 
@@ -658,7 +658,7 @@ export default function App() {
                       min={1000}
                       max={1000000}
                       step={500}
-                      prefix="$"
+                      prefix="₹"
                       onChange={changeField('loan_amount')}
                     />
                     <SelectField
@@ -683,7 +683,7 @@ export default function App() {
                       min={1000}
                       max={10000000}
                       step={1000}
-                      prefix="$"
+                      prefix="₹"
                       onChange={changeField('income')}
                     />
                   </div>
@@ -1246,7 +1246,7 @@ export default function App() {
                       </div>
                       <p>
                         {runwayMonths > 0
-                          ? `At an indicative ~$${approxMonthly}/mo payment, your reserve covers ~${runwayMonths} months of payments if income pauses.`
+                          ? `At an indicative ~₹${approxMonthly}/mo payment, your reserve covers ~${runwayMonths} months of payments if income pauses.`
                           : 'No liquid buffer provided. Monthly payment obligations rely 100% on continuous active income.'}
                       </p>
                     </div>

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from unittest.mock import MagicMock
+
+# Bypass unused toy datasets in shap.datasets to prevent Windows Smart App Control DLL blocks on scipy.io
+if "sklearn.datasets" not in sys.modules:
+    sys.modules["sklearn.datasets"] = MagicMock()
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
