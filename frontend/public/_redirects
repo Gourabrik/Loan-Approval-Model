@@ -1,2 +1,7 @@
+/health    https://loan-risk-api-production.up.railway.app/health    200
+/model-info    https://loan-risk-api-production.up.railway.app/model-info    200
+/predict    https://loan-risk-api-production.up.railway.app/predict    200
+/explain    https://loan-risk-api-production.up.railway.app/explain    200
+/workflow/*    https://loan-risk-api-production.up.railway.app/workflow/:splat    200
+/api/*    https://loan-risk-api-production.up.railway.app/api/:splat    200
 /*    /index.html   200
-

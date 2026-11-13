@@ -145,8 +145,11 @@ function downloadPersonInsight(record) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
 async function apiRequest(url, options) {
-  const response = await fetch(url, options);
+  const targetUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+  const response = await fetch(targetUrl, options);
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
     try { const body = await response.json(); detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail ?? body); } catch { /* keep HTTP status */ }
